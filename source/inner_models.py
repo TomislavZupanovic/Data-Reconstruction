@@ -88,7 +88,7 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(self.feature_map * 8),
             nn.LeakyReLU(0.2, inplace=True),
             # Output size: (feature_map * 8) x 4 x 4
-            nn.Conv2d(self.feature_map * 2, 1, 4, 1, 0, bias=False),
+            nn.Conv2d(self.feature_map * 8, 1, 4, 1, 0, bias=False),
             nn.Sigmoid()
         )
 

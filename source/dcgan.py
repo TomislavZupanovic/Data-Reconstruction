@@ -13,6 +13,7 @@ class DCGAN(object):
 
     def build(self):
         """ Initializes Generator, Discriminator models and their weights """
+        print('\nBuilding GAN model...\n')
         # Discriminator
         discriminator = Discriminator(100, 64, 3)
         discriminator.build()
@@ -33,7 +34,7 @@ class DCGAN(object):
             raise AttributeError('First build Discriminator and Generator then show.')
         else:
             print(self.discriminator)
-            print('\n', '=' * 70, '\n')
+            print('\n', '=' * 90, '\n')
             print(self.generator)
 
     def train(self, epochs, dataloader):
@@ -43,16 +44,16 @@ class DCGAN(object):
         img_list, self.G_losses, self.D_losses = [], [], []
         real_label, fake_label = 1, 0
         if torch.cuda.is_available():
-            print('GPU detected.')
+            print('\nGPU detected.')
             device = torch.device('cuda')
         else:
-            print('No GPU detected, using CPU.')
+            print('\nNo GPU detected, using CPU.')
             device = torch.device('cpu')
         self.discriminator.to(device)
         self.generator.to(device)
-        print('Starting Training...')
+        print('\nStarting Training...')
         for epoch in range(epochs):
-            for batch, data in enumerate(dataloader, 0):
+            for batch_num, data in enumerate(dataloader, 0):
                 """ Train Discriminator """
                 # All-real batch
                 self.discriminator.zero_grad()
@@ -78,21 +79,23 @@ class DCGAN(object):
                 """ Train Generator """
                 self.generator.zero_grad()
                 label.fill_(real_label)
-                output = self.generator(fake).view(-1)
+                output = self.discriminator(fake).view(-1)
                 g_loss = self.generator.criterion(output, label)
                 g_loss.backward()
                 d_output_fake2 = output.mean().item()
                 self.generator.optimizer.step()
 
-                if batch % 100 == 0:
-                    print(f'[{epoch}/{epochs}][{batch}/{len(dataloader)}\t'
-                          'D_Loss: {round(d_loss.item(), 4)}, G_Loss: {round(g_loss.item(), 4)}]')
-
+                if batch_num % 50 == 0:
+                    print(f'[{epoch+1}/{epochs}][{batch_num}/{len(dataloader)}]\t'
+                          f'Discriminator_Loss: {round(d_loss.item(), 4)}, Generator_Loss: {round(g_loss.item(), 4)}')
+                if batch_num % 100 == 0:
                     self.G_losses.append(g_loss.item())
                     self.D_losses.append(d_loss.item())
+        print('\nFinished training.')
 
     def plot_losses(self):
         """ Plots training losses """
+        print('\nPlotting losses...')
         if self.G_losses and self.D_losses:
             plt.figure(figsize=(10, 5))
             plt.title("Generator and Discriminator Loss")
@@ -107,16 +110,21 @@ class DCGAN(object):
 
     def generate_images(self, dataloader):
         """ Plot real and generated images with trained generator """
-        images, labels = iter(dataloader).next()
+        print('\nGenerating images...')
+        images, labels = next(iter(dataloader))
+        self.generator.to('cpu')
         self.generator.eval()
-        fig = plt.figure(1, figsize=(12, 5))
+        fig = plt.figure(1, figsize=(15, 5))
         gs = fig.add_gridspec(2, 6)
         for j in range(2):
             for i in range(6):
                 ax = fig.add_subplot(gs[j, i], xticks=[], yticks=[])
                 if j == 1:
-                    noise = torch.randn(1, self.generator.latent_vector, 1, 1)
-                    img = self.generator(noise).detach().numpy()
+                    noise = torch.randn(1, self.generator.latent_vector, 1, 1, device=torch.device('cpu'))
+                    with torch.no_grad():
+                        img = self.generator(noise)
+                    img = img.detach().cpu().numpy()
+                    img = np.squeeze(img, 0)
                     title = 'Generated'
                 else:
                     img = images[i].numpy()
@@ -126,4 +134,5 @@ class DCGAN(object):
                 image = transposed_img * np.array((0.5, 0.5, 0.5)) + np.array((0.5, 0.5, 0.5))
                 ax.set_title(title)
                 plt.imshow(image)
+        self.generator.train()
         plt.show()

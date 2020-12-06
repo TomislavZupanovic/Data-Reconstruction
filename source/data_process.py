@@ -12,6 +12,7 @@ class Data:
 
     def build_dataset(self, image_size, batch_size):
         """ Builds DataLoader for iterating through data """
+        print('\nBuilding dataset...')
         transform = transforms.Compose([transforms.Resize(image_size),
                                         transforms.CenterCrop(image_size),
                                         transforms.ToTensor(),
@@ -22,9 +23,10 @@ class Data:
 
     def plot_samples(self):
         """ Plots some image samples from dataloader """
+        print('\nPlotting some image samples...')
         # Iterate over data with specified batch_size of 128
-        images, labels = iter(self.dataloader).next()
-        fig = plt.figure(1, figsize=(20, 5))
+        images, labels = next(iter(self.dataloader))
+        fig = plt.figure(1, figsize=(15, 5))
         for idx in range(10):
             # Make plotting grid
             ax = fig.add_subplot(2, 10 / 2, idx + 1, xticks=[], yticks=[])
@@ -35,4 +37,3 @@ class Data:
             image = transposed_img * np.array((0.5, 0.5, 0.5)) + np.array((0.5, 0.5, 0.5))
             plt.imshow(image)
         plt.show()
-
