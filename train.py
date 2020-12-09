@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 from source.data_process import Data
 from source.dcgan import DCGAN
 from datetime import datetime
