@@ -25,4 +25,6 @@ Unzip in cloned repository to have path like this:
 
 - For Linux/MacOS see: [Virtual Environments](https://packaging.python.org/guides/installing-using-pip-and-virtual-environments/)
 
+- Run training:
 
+`$ python train.py`
