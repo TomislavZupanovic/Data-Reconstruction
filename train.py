@@ -22,7 +22,8 @@ if __name__ == '__main__':
         dcgan.generate_images(dataloader=data.dataloader)
         save = input('\nSave Generator? [y,n] ')
         if save == 'y':
-            torch.save(dcgan.generator.state_dict(), f'saved_models/{model_train_time}-Generator.pth')
+            torch.save(dcgan.generator.state_dict(), 
+                       f'saved_models/{model_train_time}-Generator.pth')
         else:
             pass
     else:

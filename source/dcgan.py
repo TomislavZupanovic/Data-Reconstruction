@@ -31,7 +31,7 @@ class DCGAN(object):
     def show_models(self):
         """ Prints Generator and Discriminator architecture """
         if not self.discriminator or not self.generator:
-            raise AttributeError('First build Discriminator and Generator then show.')
+            raise AttributeError('First build Discriminator and Generator.')
         else:
             print(self.discriminator)
             print('\n', '=' * 90, '\n')
