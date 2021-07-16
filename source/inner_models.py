@@ -1,5 +1,4 @@
 from matplotlib.pyplot import install_repl_displayhook
-import torch
 import torch.nn as nn
 from torch.nn.modules.activation import LeakyReLU
 from torch.nn.modules.batchnorm import BatchNorm1d, BatchNorm2d
@@ -99,9 +98,6 @@ class Generator(nn.Module):
         return self.main(input)
 
     def define_optim(self, learning_rate, beta1):
-        self.criterion = nn.BCELoss()
-        if self.conditional:
-            self.criterionMSE = nn.MSELoss()
         self.optimizer = optim.Adam(self.main.parameters(), lr=learning_rate, betas=(beta1, 0.999))
 
     @staticmethod
@@ -157,9 +153,6 @@ class Discriminator(nn.Module):
 
     def define_optim(self, learning_rate, beta1):
         """ Initialize Loss Function and Optimizer """
-        self.criterion = nn.BCELoss()
-        if self.conditional:
-            self.criterionMSE = nn.MSELoss()
         self.optimizer = optim.Adam(self.main.parameters(), lr=learning_rate, betas=(beta1, 0.999))
 
     @staticmethod

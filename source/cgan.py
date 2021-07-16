@@ -1,5 +1,6 @@
 from source.inner_models import Generator, Discriminator
 import torch
+import torch.nn as nn
 import numpy as np
 
 
@@ -26,6 +27,8 @@ class CGAN(object):
 
         self.context_encoder = context_encoder
         self.discriminator = discriminator
+        # Define Criterion
+        self.criterion = nn.BCELoss()
 
     def print_models(self):
         """ Prints Context Encoder and Discriminator architecture """

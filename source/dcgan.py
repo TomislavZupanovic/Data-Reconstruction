@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import numpy as np
 from source.inner_models import Generator, Discriminator
 import matplotlib.pyplot as plt
@@ -27,6 +28,8 @@ class DCGAN(object):
 
         self.generator = generator
         self.discriminator = discriminator
+        # Define Criterion
+        self.criterion = nn.BCELoss()
 
     def show_models(self):
         """ Prints Generator and Discriminator architecture """
@@ -61,7 +64,7 @@ class DCGAN(object):
                 batch_size = real_img.size(0)
                 label = torch.full((batch_size,), real_label, dtype=torch.float, device=device)
                 output = self.discriminator(real_img).view(-1)
-                d_loss_real = self.discriminator.criterion(output, label)
+                d_loss_real = self.criterion(output, label)
                 d_loss_real.backward()
                 d_output_real = output.mean().item()
 
@@ -70,7 +73,7 @@ class DCGAN(object):
                 fake = self.generator(noise)
                 label.fill_(fake_label)
                 output = self.discriminator(fake.detach()).view(-1)
-                d_loss_fake = self.discriminator.criterion(output, label)
+                d_loss_fake = self.criterion(output, label)
                 d_loss_fake.backward()
                 d_output_fake1 = output.mean().item()
                 d_loss = d_loss_fake + d_loss_real
@@ -80,7 +83,7 @@ class DCGAN(object):
                 self.generator.zero_grad()
                 label.fill_(real_label)
                 output = self.discriminator(fake).view(-1)
-                g_loss = self.generator.criterion(output, label)
+                g_loss = self.criterion(output, label)
                 g_loss.backward()
                 d_output_fake2 = output.mean().item()
                 self.generator.optimizer.step()
