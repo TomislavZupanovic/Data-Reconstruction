@@ -1,4 +1,5 @@
 import torch
+from torch.nn import functional
 import torchvision.transforms as transforms
 from torchvision import datasets
 import matplotlib.pyplot as plt
@@ -20,6 +21,40 @@ class Data:
                                                              (0.5, 0.5, 0.5))])
         dataset = datasets.ImageFolder(root=self.path, transform=transform)
         self.dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    @staticmethod
+    def mask_images(data, option='half'):
+        """ Masks the input images with option for 50%, 80% and 90% of image as pixels to reconstruct """
+        valid_options = ('half', 'half random', '10 random', '20 random')
+        multipliers = {'half': 0.5, 'half random': 0.5, '10 random': 0.9, '20 random': 0.8}
+        if option not in valid_options:
+            raise ValueError(f"Option must be one of: {valid_options}")
+        real_img = data[0]
+        img_size = real_img.shape[2]
+        masked_img, real_part = real_img.clone(), real_img.clone()
+        masking_equations = [2 * 117.0 / 255.0 - 1.0, 2 * 104.0 / 255.0 - 1.0, 2 * 123.0 / 255.0 - 1.0]
+        if option == 'half':
+            mask = np.zeros(real_img.shape[2:])
+            mask[:int(img_size / 2), :] = 1
+            mask = mask.astype('bool')
+            for equation in masking_equations:
+                masked_img[:, :, mask] = equation
+                real_part[:, :, ~mask] = equation
+        else:
+            random_array = np.random.choice(2, int(img_size ** 2), p=[1 - multipliers[option], multipliers[option]])
+            mask = random_array.reshape(real_img.shape[2:]).astype('bool')
+            for equation in masking_equations:
+                masked_img[:, :, mask] = equation
+                real_part[:, :, ~mask] = equation
+        return masked_img, real_part, mask
+
+    @staticmethod
+    def resize_images(real_img):
+        """ Resize Tensor Images to 4 times lower resolution """
+        resize_images = real_img.clone()
+        dim_size = int(resize_images.shape[2] / 4)
+        resize_images = functional.interpolate(resize_images, size=(dim_size, dim_size), mode='bilinear')
+        return resize_images
 
     def plot_samples(self):
         """ Plots some image samples from dataloader """

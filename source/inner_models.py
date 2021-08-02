@@ -1,26 +1,25 @@
-from matplotlib.pyplot import install_repl_displayhook
 import torch.nn as nn
-from torch.nn.modules.activation import LeakyReLU
-from torch.nn.modules.batchnorm import BatchNorm1d, BatchNorm2d
-from torch.nn.modules.conv import Conv2d
+import torch
 import torch.optim as optim
 
 
 class Generator(nn.Module):
-    """ Generator part of DCGAN model """
-    def __init__(self, latent_vector_size, feature_map, num_channels, conditional=False):
+    """ Generator part of Model """
+    def __init__(self, latent_vector_size, feature_map, num_channels, gan_option):
         super(Generator, self).__init__()
         self.latent_vector = latent_vector_size
         self.feature_map = feature_map
         self.channels = num_channels
-        self.criterion = None
         self.optimizer = None
         self.main = None
-        self.conditional = conditional
+        valid_options = ('DCGAN', 'AE-GAN')
+        if gan_option not in valid_options:
+            raise ValueError(f"GAN architecture option must be one of: {valid_options}")
+        self.gan_option = gan_option
 
     def build(self):
         """ Builds model with Sequential definition """
-        if self.conditional:
+        if self.gan_option == 'AE-GAN':
             """ Context Encoder Network """
             self.main = nn.Sequential(   
                 # Encoder         
@@ -51,23 +50,23 @@ class Generator(nn.Module):
 
                 # Decoder
                 # State size: (feature_map * 8) x 4 x 4
-                nn.ConvTranspose2d(self.feature_map * 8, self.feature_map * 4, 4, 2, 1),
+                nn.ConvTranspose2d(4000, self.feature_map * 8, 4, 2, 1),
                 nn.BatchNorm2d(self.feature_map * 4),
                 nn.ReLU(),
                 # State size: (feature_map * 4) x 8 x 8
-                nn.ConvTranspose2d(self.feature_map * 4, self.feature_map * 2, 4, 2, 1),
+                nn.ConvTranspose2d(self.feature_map * 8, self.feature_map * 4, 4, 2, 1),
                 nn.BatchNorm2d(self.feature_map * 2),
                 nn.ReLU(),
                 # State size: (feature_map * 2) x 16 x 16
-                nn.ConvTranspose2d(self.feature_map * 2, self.feature_map, 4, 2, 1),
+                nn.ConvTranspose2d(self.feature_map * 4, self.feature_map, 2, 2, 1),
                 nn.BatchNorm2d(self.feature_map),
                 nn.ReLU(),
                 # State size: (feature_map) x 32 x 32
-                nn.ConvTranspose2d(self.feature_map, self.channels, 4, 2, 1),
+                nn.ConvTranspose2d(self.feature_map * 2, self.channels, 4, 2, 1),
                 nn.Tanh()
                 # Output size: channels x 64 x 64
             )
-        else:
+        elif self.gan_option == 'DCGAN':
             """ DCGAN Network """
             self.main = nn.Sequential(
                 # Input is latent vector
@@ -92,7 +91,6 @@ class Generator(nn.Module):
                 # Output is image: channels x 64 x 64
             )
 
-
     def forward(self, input):
         """ Perform forward pass """
         return self.main(input)
@@ -113,19 +111,21 @@ class Generator(nn.Module):
 
 class Discriminator(nn.Module):
     """ Discriminator part of DCGAN model """
-    def __init__(self, latent_vector_size, feature_map, num_channels, conditional=False):
+    def __init__(self, latent_vector_size, feature_map, num_channels, gan_option):
         super(Discriminator, self).__init__()
         self.latent_vector = latent_vector_size
         self.feature_map = feature_map
         self.channels = num_channels
-        self.criterion = None
         self.optimizer = None
         self.main = None
-        self.conditional = conditional
+        valid_options = ('DCGAN', 'AE-GAN')
+        if gan_option not in valid_options:
+            raise ValueError(f"GAN architecture option must be one of: {valid_options}")
+        self.gan_option = gan_option
 
     def build(self):
         """ Builds model with Sequential definition """
-        bias = True if self.conditional else False
+        bias = True if self.gan_option == 'AE-GAN' else False
         self.main = nn.Sequential(
             # Input is image: channels x 64 x 64
             nn.Conv2d(self.channels, self.feature_map, 4, 2, 1, bias=bias),

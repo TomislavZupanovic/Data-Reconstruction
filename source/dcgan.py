@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from source.inner_models import Generator, Discriminator
+from inner_models import Generator, Discriminator
 import matplotlib.pyplot as plt
 
 
