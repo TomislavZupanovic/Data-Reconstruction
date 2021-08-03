@@ -115,10 +115,11 @@ class AEGAN(object):
         else:
             raise ValueError('First train AE-GAN then plot losses.')
 
-    def generate_images(self, dataloader):
+    def generate_images(self, dataloader, data_processor, option='half'):
         """ Plot real and generated images with trained generator """
         print('\nGenerating images...')
         images, labels = next(iter(dataloader))
+        masked_images, _, _ = data_processor.mask_images(images, option)
         self.context_encoder.to('cpu')
         self.context_encoder.eval()
         fig = plt.figure(1, figsize=(15, 5))
@@ -126,16 +127,15 @@ class AEGAN(object):
         for j in range(2):
             for i in range(6):
                 ax = fig.add_subplot(gs[j, i], xticks=[], yticks=[])
-                if j == 1:   # TODO: Change to give masked image as input instead of Latent noise
-                    noise = torch.randn(1, self.context_encoder.latent_vector, 1, 1, device=torch.device('cpu'))
+                if j == 1:
                     with torch.no_grad():
-                        img = self.context_encoder(noise)
+                        img = self.context_encoder(masked_images[i])
                     img = img.detach().cpu().numpy()
                     img = np.squeeze(img, 0)
-                    title = 'Generated'
+                    title = 'Reconstructed'
                 else:
-                    img = images[i].numpy()
-                    title = 'Real'
+                    img = masked_images[i].numpy()
+                    title = 'Masked'
                 # Transpose image so that last dim is number of channels and un-normalize
                 transposed_img = np.transpose(img, (1, 2, 0))
                 image = transposed_img * np.array((0.5, 0.5, 0.5)) + np.array((0.5, 0.5, 0.5))
