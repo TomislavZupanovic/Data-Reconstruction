@@ -44,25 +44,25 @@ class Generator(nn.Module):
                 nn.LeakyReLU(0.2, inplace=True),
 
                 # Bottleneck
-                nn.Conv2d(self.feature_map * 8, 4000, 4),
+                nn.Conv2d(self.feature_map * 8, 4000, 1),
                 nn.BatchNorm2d(4000),
                 nn.ReLU(),
 
                 # Decoder
                 # State size: (feature_map * 8) x 4 x 4
                 nn.ConvTranspose2d(4000, self.feature_map * 8, 4, 2, 1),
-                nn.BatchNorm2d(self.feature_map * 4),
+                nn.BatchNorm2d(self.feature_map * 8),
                 nn.ReLU(),
                 # State size: (feature_map * 4) x 8 x 8
                 nn.ConvTranspose2d(self.feature_map * 8, self.feature_map * 4, 4, 2, 1),
-                nn.BatchNorm2d(self.feature_map * 2),
+                nn.BatchNorm2d(self.feature_map * 4),
                 nn.ReLU(),
                 # State size: (feature_map * 2) x 16 x 16
-                nn.ConvTranspose2d(self.feature_map * 4, self.feature_map, 2, 2, 1),
-                nn.BatchNorm2d(self.feature_map),
+                nn.ConvTranspose2d(self.feature_map * 4, self.feature_map * 2 , 2, 2, 1),
+                nn.BatchNorm2d(self.feature_map * 2),
                 nn.ReLU(),
                 # State size: (feature_map) x 32 x 32
-                nn.ConvTranspose2d(self.feature_map * 2, self.channels, 4, 2, 1),
+                nn.ConvTranspose2d(self.feature_map, self.channels, 3, 1, 1),
                 nn.Tanh()
                 # Output size: channels x 64 x 64
             )

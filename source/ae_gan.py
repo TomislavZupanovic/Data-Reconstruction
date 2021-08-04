@@ -1,4 +1,4 @@
-from inner_models import Generator, Discriminator
+from source.inner_models import Generator, Discriminator
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn

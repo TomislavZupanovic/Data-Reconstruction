@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from inner_models import Generator, Discriminator
+from source.inner_models import Generator, Discriminator
 import matplotlib.pyplot as plt
-
 
 class DCGAN(object):
     def __init__(self):
@@ -31,7 +30,7 @@ class DCGAN(object):
         # Define Criterion
         self.criterion = nn.BCELoss()
 
-    def show_models(self):
+    def print_models(self):
         """ Prints Generator and Discriminator architecture """
         if not self.discriminator or not self.generator:
             raise AttributeError('First build Discriminator and Generator.')
@@ -40,7 +39,7 @@ class DCGAN(object):
             print('\n', '=' * 90, '\n')
             print(self.generator)
 
-    def train(self, epochs, dataloader):
+    def train(self, epochs, dataloader, data_processor=None, option=None):
         """ Trains Discriminator and Generator """
         if not self.discriminator or not self.generator:
             raise AttributeError('First build DCGAN then train it.')
@@ -111,7 +110,7 @@ class DCGAN(object):
         else:
             raise ValueError('First train DCGAN then plot losses.')
 
-    def generate_images(self, dataloader):
+    def generate_images(self, dataloader, data_processor=None, option=None):
         """ Plot real and generated images with trained generator """
         print('\nGenerating images...')
         images, labels = next(iter(dataloader))

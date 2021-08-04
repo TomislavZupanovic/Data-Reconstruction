@@ -1,4 +1,4 @@
-from ccgan_models import Generator, Discriminator
+from source.ccgan_models import Generator, Discriminator
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
