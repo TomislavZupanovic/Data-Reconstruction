@@ -66,8 +66,8 @@ class AEGAN(object):
                 batch_size = real_img.size(0)
 
                 # Define Real and Fake labels
-                valid = torch.full((batch_size,), real_label, dtype=torch.float, device=device)
-                fake = torch.full((batch_size,), fake_label, dtype=torch.float, device=device)
+                valid = torch.full((batch_size, 1, 1, 1), real_label, dtype=torch.float, device=device)
+                fake = torch.full((batch_size, 1, 1, 1), fake_label, dtype=torch.float, device=device)
 
                 """ Training Context Encoder """
                 # All-real batch
@@ -118,8 +118,8 @@ class AEGAN(object):
     def generate_images(self, dataloader, data_processor, option='half'):
         """ Plot real and generated images with trained generator """
         print('\nGenerating images...')
-        images, labels = next(iter(dataloader))
-        masked_images, _, _ = data_processor.mask_images(images, option)
+        data = next(iter(dataloader))
+        masked_images, _, _ = data_processor.mask_images(data, option)
         self.context_encoder.to('cpu')
         self.context_encoder.eval()
         fig = plt.figure(1, figsize=(15, 5))
@@ -129,7 +129,7 @@ class AEGAN(object):
                 ax = fig.add_subplot(gs[j, i], xticks=[], yticks=[])
                 if j == 1:
                     with torch.no_grad():
-                        img = self.context_encoder(masked_images[i])
+                        img = self.context_encoder(torch.unsqueeze(masked_images[i], 0))
                     img = img.detach().cpu().numpy()
                     img = np.squeeze(img, 0)
                     title = 'Reconstructed'

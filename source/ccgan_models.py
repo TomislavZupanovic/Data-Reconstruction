@@ -58,7 +58,7 @@ class Generator(nn.Module):
 
         self.up1 = UNetUp(self.feature_map * 8, self.feature_map * 8, dropout=0.5)
         self.up2 = UNetUp(self.feature_map * 16, self.feature_map * 8, dropout=0.5)
-        self.up3 = UNetUp(self.feature_map * 16, self.feature_map * 4, dropout=0.5)
+        self.up3 = UNetUp(self.feature_map * 8, self.feature_map * 4, dropout=0.5)
         self.up4 = UNetUp(self.feature_map * 8, self.feature_map * 2)
         self.up5 = UNetUp((self.feature_map * 4) + self.channels, 64)
 

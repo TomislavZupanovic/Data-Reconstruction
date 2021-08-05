@@ -22,49 +22,51 @@ class Generator(nn.Module):
         if self.gan_option == 'AE-GAN':
             """ Context Encoder Network """
             self.main = nn.Sequential(   
-                # Encoder         
                 # Input is image: channels x 64 x 64
                 nn.Conv2d(self.channels, self.feature_map, 4, 2, 1),
                 nn.LeakyReLU(0.2, inplace=True),
                 # State size: feature_map x 32 x 32
                 nn.Conv2d(self.feature_map, self.feature_map, 4, 2, 1),
-                nn.BatchNorm2d(self.feature_map),
+                nn.BatchNorm2d(self.feature_map, 0.8),
                 nn.LeakyReLU(0.2, inplace=True),
                 # State size: feature_map x 16 x 16
                 nn.Conv2d(self.feature_map, self.feature_map * 2, 4, 2, 1),
-                nn.BatchNorm2d(self.feature_map * 2),
+                nn.BatchNorm2d(self.feature_map * 2, 0.8),
                 nn.LeakyReLU(0.2, inplace=True),
                 # State size: (feature_map * 2) x 8 x 8
                 nn.Conv2d(self.feature_map * 2, self.feature_map * 4, 4, 2, 1),
-                nn.BatchNorm2d(self.feature_map * 4),
+                nn.BatchNorm2d(self.feature_map * 4, 0.8),
                 nn.LeakyReLU(0.2, inplace=True),
                 # State size: (feature_map * 4) x 4 x 4
                 nn.Conv2d(self.feature_map * 4, self.feature_map * 8, 4, 2, 1),
-                nn.BatchNorm2d(self.feature_map * 8),
+                nn.BatchNorm2d(self.feature_map * 8, 0.8),
                 nn.LeakyReLU(0.2, inplace=True),
 
                 # Bottleneck
+                # State size: (feature_map * 8) x 2 x 2
                 nn.Conv2d(self.feature_map * 8, 4000, 1),
-                nn.BatchNorm2d(4000),
-                nn.ReLU(),
 
                 # Decoder
-                # State size: (feature_map * 8) x 4 x 4
-                nn.ConvTranspose2d(4000, self.feature_map * 8, 4, 2, 1),
-                nn.BatchNorm2d(self.feature_map * 8),
+                # State size: (feature_map * 8) x 2 x 2
+                nn.ConvTranspose2d(4000, self.feature_map * 8, 3, 1, 0, bias=False),
+                nn.BatchNorm2d(self.feature_map * 8, 0.8),
                 nn.ReLU(),
-                # State size: (feature_map * 4) x 8 x 8
-                nn.ConvTranspose2d(self.feature_map * 8, self.feature_map * 4, 4, 2, 1),
-                nn.BatchNorm2d(self.feature_map * 4),
+                # state size: (feature_map*8) x 4 x 4
+                nn.ConvTranspose2d(self.feature_map * 8, self.feature_map * 4, 4, 2, 1, bias=False),
+                nn.BatchNorm2d(self.feature_map * 4, 0.8),
                 nn.ReLU(),
-                # State size: (feature_map * 2) x 16 x 16
-                nn.ConvTranspose2d(self.feature_map * 4, self.feature_map * 2 , 2, 2, 1),
-                nn.BatchNorm2d(self.feature_map * 2),
+                # state size: (feature_map*4) x 8 x 8
+                nn.ConvTranspose2d(self.feature_map * 4, self.feature_map * 2, 4, 2, 1, bias=False),
+                nn.BatchNorm2d(self.feature_map * 2, 0.8),
                 nn.ReLU(),
-                # State size: (feature_map) x 32 x 32
-                nn.ConvTranspose2d(self.feature_map, self.channels, 3, 1, 1),
+                # state size: (feature_map*2) x 16 x 16
+                nn.ConvTranspose2d(self.feature_map * 2, self.feature_map, 4, 2, 1, bias=False),
+                nn.BatchNorm2d(self.feature_map, 0.8),
+                nn.ReLU(),
+                # state size: (feature_map) x 32 x 32
+                nn.ConvTranspose2d(self.feature_map, self.channels, 4, 2, 1, bias=False),
                 nn.Tanh()
-                # Output size: channels x 64 x 64
+                # Output is image: channels x 64 x 64
             )
         elif self.gan_option == 'DCGAN':
             """ DCGAN Network """
@@ -142,9 +144,10 @@ class Discriminator(nn.Module):
             nn.Conv2d(self.feature_map * 4, self.feature_map * 8, 4, 2, 1, bias=bias),
             nn.BatchNorm2d(self.feature_map * 8),
             nn.LeakyReLU(0.2, inplace=True),
-            # Output size: (feature_map * 8) x 4 x 4
+            # State size: (feature_map * 8) x 4 x 4
             nn.Conv2d(self.feature_map * 8, 1, 4, 1, 0, bias=bias),
             nn.Sigmoid()
+            # Output size: 1 x 1 x 1
         )
 
     def forward(self, input):

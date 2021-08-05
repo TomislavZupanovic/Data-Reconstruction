@@ -113,9 +113,9 @@ class CCGAN(object):
     def generate_images(self, dataloader, data_processor, option='half'):
         """ Plot real and generated images with trained generator """
         print('\nGenerating images...')
-        images, labels = next(iter(dataloader))
-        masked_images, _, _ = data_processor.mask_images(images, option)
-        resized_images = data_processor.resize_images(images)
+        data = next(iter(dataloader))
+        masked_images, _, _ = data_processor.mask_images(data, option)
+        resized_images = data_processor.resize_images(data)
         self.context_encoder.to('cpu')
         self.context_encoder.eval()
         fig = plt.figure(1, figsize=(15, 5))
