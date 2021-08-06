@@ -76,7 +76,7 @@ class AEGAN(object):
                 generated_parts = self.context_encoder(masked_image)
                 # Adversarial and pixelwise loss
                 g_adv = self.adversarial_loss(self.discriminator(generated_parts), valid)
-                g_pixel = self.pixelwise_loss(generated_parts, real_part)
+                g_pixel = self.pixelwise_loss(generated_parts, real_img)
                 # Total loss
                 context_enc_loss = 0.001 * g_adv + 0.999 * g_pixel
                 context_enc_loss.backward()
@@ -85,7 +85,7 @@ class AEGAN(object):
                 """ Training Discriminator """
                 self.discriminator.zero_grad()
                 # Measure discriminator's ability to classify real from generated samples
-                real_loss = self.adversarial_loss(self.discriminator(real_part), valid)
+                real_loss = self.adversarial_loss(self.discriminator(real_img), valid)
                 fake_loss = self.adversarial_loss(self.discriminator(generated_parts.detach()), fake)
                 discriminator_loss = 0.5 * (real_loss + fake_loss)
                 discriminator_loss.backward()
@@ -141,5 +141,5 @@ class AEGAN(object):
                 image = transposed_img * np.array((0.5, 0.5, 0.5)) + np.array((0.5, 0.5, 0.5))
                 ax.set_title(title)
                 plt.imshow(image)
-        self.context_encoder.train()
+        self.context_encoder.train() 
         plt.show()

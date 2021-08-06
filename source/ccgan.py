@@ -61,12 +61,12 @@ class CCGAN(object):
             for batch_num, data in enumerate(dataloader, 0):
                 real_imgs = data[0].to(device)
                 masked_image, real_part, mask = data_processor.mask_images(data, option)
-                resized_image = data_processor.resize_images(real_imgs)
+                resized_image = data_processor.resize_images(data)
                 batch_size = real_imgs.size(0)
 
                 # Define Real and Fake labels
-                valid = torch.full((batch_size,), real_label, dtype=torch.float, device=device)
-                fake = torch.full((batch_size,), fake_label, dtype=torch.float, device=device)
+                valid = torch.full((batch_size, 1, 8, 8), real_label, dtype=torch.float, device=device)
+                fake = torch.full((batch_size, 1, 8, 8), fake_label, dtype=torch.float, device=device)
                 
                 """ Train Generator"""
                 self.generator.zero_grad()
@@ -116,8 +116,8 @@ class CCGAN(object):
         data = next(iter(dataloader))
         masked_images, _, _ = data_processor.mask_images(data, option)
         resized_images = data_processor.resize_images(data)
-        self.context_encoder.to('cpu')
-        self.context_encoder.eval()
+        self.generator.to('cpu')
+        self.generator.eval()
         fig = plt.figure(1, figsize=(15, 5))
         gs = fig.add_gridspec(2, 6)
         for j in range(2):
@@ -125,7 +125,8 @@ class CCGAN(object):
                 ax = fig.add_subplot(gs[j, i], xticks=[], yticks=[])
                 if j == 1: 
                     with torch.no_grad():
-                        img = self.generator(masked_images[i], resized_images[i])
+                        img = self.generator(torch.unsqueeze(masked_images[i], 0), 
+                                             torch.unsqueeze(resized_images[i], 0))
                     img = img.detach().cpu().numpy()
                     img = np.squeeze(img, 0)
                     title = 'Reconstructed'

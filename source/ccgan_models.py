@@ -58,11 +58,13 @@ class Generator(nn.Module):
 
         self.up1 = UNetUp(self.feature_map * 8, self.feature_map * 8, dropout=0.5)
         self.up2 = UNetUp(self.feature_map * 16, self.feature_map * 8, dropout=0.5)
-        self.up3 = UNetUp(self.feature_map * 8, self.feature_map * 4, dropout=0.5)
+        self.up3 = UNetUp(self.feature_map * 16, self.feature_map * 4, dropout=0.5)
         self.up4 = UNetUp(self.feature_map * 8, self.feature_map * 2)
         self.up5 = UNetUp((self.feature_map * 4) + self.channels, 64)
 
-        final = [nn.Upsample(scale_factor=2), nn.Conv2d(self.feature_map * 2, self.channels, 3, 1, 1), nn.Tanh()]
+        final = [nn.Upsample(scale_factor=2), 
+                 nn.Conv2d(self.feature_map * 2, self.channels, 3, 1, 1), 
+                 nn.Tanh()]
         self.final = nn.Sequential(*final)
 
     def forward(self, input, x_lr):
@@ -82,7 +84,7 @@ class Generator(nn.Module):
         return self.final(u5)
 
     def define_optim(self, learning_rate, beta1):
-        self.optimizer = optim.Adam(self.main.parameters(), lr=learning_rate, betas=(beta1, 0.999))
+        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate, betas=(beta1, 0.999))
 
     @staticmethod
     def init_weights(layers):

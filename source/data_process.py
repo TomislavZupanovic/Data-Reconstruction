@@ -32,7 +32,8 @@ class Data:
         real_img = data[0]
         img_size = real_img.shape[2]
         masked_img, real_part = real_img.clone(), real_img.clone()
-        masking_equations = [2 * 117.0 / 255.0 - 1.0, 2 * 104.0 / 255.0 - 1.0, 2 * 123.0 / 255.0 - 1.0]
+        # masking_equations = [2 * 117.0 / 255.0 - 1.0, 2 * 104.0 / 255.0 - 1.0, 2 * 123.0 / 255.0 - 1.0]
+        masking_equations = [-1.0, -1.0, -1.0]
         if option == 'half':
             mask = np.zeros(real_img.shape[2:])
             mask[:int(img_size / 2), :] = 1
@@ -49,8 +50,9 @@ class Data:
         return masked_img, real_part, mask
 
     @staticmethod
-    def resize_images(real_img):
+    def resize_images(data):
         """ Resize Tensor Images to 4 times lower resolution """
+        real_img = data[0]
         resize_images = real_img.clone()
         dim_size = int(resize_images.shape[2] / 4)
         resize_images = functional.interpolate(resize_images, size=(dim_size, dim_size), mode='bilinear')
