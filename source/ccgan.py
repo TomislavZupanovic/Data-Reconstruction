@@ -1,5 +1,6 @@
 from source.ccgan_models import Generator, Discriminator
 import matplotlib.pyplot as plt
+from torchvision.utils import save_image
 import torch
 import torch.nn as nn
 import numpy as np
@@ -41,8 +42,16 @@ class CCGAN(object):
             print(self.discriminator)
             print('\n', '=' * 90, '\n')
             print(self.generator)
+            
+    def save_sample(self, saved_samples: dict, batches_done: int, path: str) -> None:
+        # Generate inpainted image
+        gen_imgs = self.context_encoder(saved_samples["masked"], saved_samples["lowres"])
+        # Save sample
+        sample = torch.cat((saved_samples["masked"].data, gen_imgs.data, saved_samples["imgs"].data), -2)
+        save_path = path + f'/{batches_done}.png'
+        save_image(sample, save_path, nrow=5, normalize=True)
 
-    def train(self, epochs, dataloader, data_processor, option='half'):
+    def train(self, epochs, dataloader, data_processor, option, save_path):
         """ Trains Discriminator and Context Encoder """
         if not self.discriminator or not self.generator:
             raise AttributeError('First build AE-GAN.')
@@ -56,6 +65,7 @@ class CCGAN(object):
             device = torch.device('cpu')
         self.discriminator.to(device)
         self.generator.to(device)
+        saved_samples = {}
         print('\nStarting Training...')
         for epoch in range(epochs):
             for batch_num, data in enumerate(dataloader, 0):
@@ -93,6 +103,20 @@ class CCGAN(object):
                 if batch_num % 100 == 0:
                     self.C_losses.append(generator_loss.item())
                     self.D_losses.append(discriminator_loss.item())
+                    
+                # Save first ten samples
+                if not saved_samples:
+                    saved_samples["imgs"] = real_imgs[:1].clone()
+                    saved_samples["masked"] = masked_image[:1].clone()
+                    saved_samples["lowres"] = resized_image[:1].clone()
+                elif saved_samples["imgs"].size(0) < 10:
+                    saved_samples["imgs"] = torch.cat((saved_samples["imgs"], real_imgs[:1]), 0)
+                    saved_samples["masked"] = torch.cat((saved_samples["masked"], masked_image[:1]), 0)
+                    saved_samples["lowres"] = torch.cat((saved_samples["lowres"], resized_image[:1]), 0)
+
+                batches_done = epoch * len(dataloader) + batch_num
+                if batches_done % 300 == 0:
+                    self.save_sample(saved_samples, batches_done, save_path)
         print('\nFinished training.')
         
     def plot_losses(self):

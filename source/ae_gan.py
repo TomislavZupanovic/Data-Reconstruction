@@ -3,12 +3,13 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import numpy as np
+from torchvision.utils import save_image
 
 
 class AEGAN(object):
     def __init__(self):
         self.discriminator = None
-        self.context_encoder = None
+        self.generator = None
         self.C_losses = None
         self.D_losses = None
         self.adversarial_loss = None
@@ -23,12 +24,12 @@ class AEGAN(object):
         discriminator.apply(Discriminator.init_weights)
         discriminator.define_optim(0.0002, 0.5)
         # Context Encoder (None for latent vector size, we don't need it)
-        context_encoder = Generator(None, 64, 3, gan_option='AE-GAN')
-        context_encoder.build()
-        context_encoder.apply(Generator.init_weights)
-        context_encoder.define_optim(0.0002, 0.5)
+        generator = Generator(None, 64, 3, gan_option='AE-GAN')
+        generator.build()
+        generator.apply(Generator.init_weights)
+        generator.define_optim(0.0002, 0.5)
 
-        self.context_encoder = context_encoder
+        self.generator = generator
         self.discriminator = discriminator
         # Define Criterion
         self.adversarial_loss = nn.MSELoss()
@@ -36,16 +37,16 @@ class AEGAN(object):
 
     def print_models(self):
         """ Prints Context Encoder and Discriminator architecture """
-        if not self.discriminator or not self.context_encoder:
+        if not self.discriminator or not self.generator:
             raise AttributeError('First build Discriminator and Context Encoder.')
         else:
             print(self.discriminator)
             print('\n', '=' * 90, '\n')
-            print(self.context_encoder)
+            print(self.generator)
 
     def train(self, epochs, dataloader, data_processor, option='half'):
         """ Trains Discriminator and Context Encoder """
-        if not self.discriminator or not self.context_encoder:
+        if not self.discriminator or not self.generator:
             raise AttributeError('First build AE-GAN.')
         self.C_losses, self.D_losses = [], []
         real_label, fake_label = 1, 0
@@ -56,7 +57,7 @@ class AEGAN(object):
             print('\nNo GPU detected, using CPU.')
             device = torch.device('cpu')
         self.discriminator.to(device)
-        self.context_encoder.to(device)
+        self.generator.to(device)
         print('\nStarting Training...')
         for epoch in range(epochs):
             for batch_num, data in enumerate(dataloader, 0):
@@ -71,16 +72,16 @@ class AEGAN(object):
 
                 """ Training Context Encoder """
                 # All-real batch
-                self.context_encoder.zero_grad()
+                self.generator.zero_grad()
                 # Generate a batch of images
-                generated_parts = self.context_encoder(masked_image)
+                generated_parts = self.generator(masked_image)
                 # Adversarial and pixelwise loss
                 g_adv = self.adversarial_loss(self.discriminator(generated_parts), valid)
                 g_pixel = self.pixelwise_loss(generated_parts, real_img)
                 # Total loss
                 context_enc_loss = 0.001 * g_adv + 0.999 * g_pixel
                 context_enc_loss.backward()
-                self.context_encoder.optimizer.step()
+                self.generator.optimizer.step()
 
                 """ Training Discriminator """
                 self.discriminator.zero_grad()
@@ -98,6 +99,7 @@ class AEGAN(object):
                 if batch_num % 100 == 0:
                     self.C_losses.append(context_enc_loss.item())
                     self.D_losses.append(discriminator_loss.item())
+                
         print('\nFinished training.')
 
     def plot_losses(self):
@@ -120,8 +122,8 @@ class AEGAN(object):
         print('\nGenerating images...')
         data = next(iter(dataloader))
         masked_images, _, _ = data_processor.mask_images(data, option)
-        self.context_encoder.to('cpu')
-        self.context_encoder.eval()
+        self.generator.to('cpu')
+        self.generator.eval()
         fig = plt.figure(1, figsize=(15, 5))
         gs = fig.add_gridspec(2, 6)
         for j in range(2):
@@ -129,7 +131,7 @@ class AEGAN(object):
                 ax = fig.add_subplot(gs[j, i], xticks=[], yticks=[])
                 if j == 1:
                     with torch.no_grad():
-                        img = self.context_encoder(torch.unsqueeze(masked_images[i], 0))
+                        img = self.generator(torch.unsqueeze(masked_images[i], 0))
                     img = img.detach().cpu().numpy()
                     img = np.squeeze(img, 0)
                     title = 'Reconstructed'
@@ -141,5 +143,5 @@ class AEGAN(object):
                 image = transposed_img * np.array((0.5, 0.5, 0.5)) + np.array((0.5, 0.5, 0.5))
                 ax.set_title(title)
                 plt.imshow(image)
-        self.context_encoder.train() 
+        self.generator.train() 
         plt.show()
