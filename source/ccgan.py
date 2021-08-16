@@ -2,6 +2,7 @@ from source.ccgan_models import Generator, Discriminator
 import matplotlib.pyplot as plt
 from torchvision.utils import save_image
 import torch
+import pandas as pd
 import torch.nn as nn
 import numpy as np
 
@@ -133,7 +134,13 @@ class CCGAN(object):
             plt.show()
         else:
             raise ValueError('First train CCGAN then plot losses.')
-                
+    
+    def create_losses_df(self):
+        """ Saves Generator and Discriminator Losses """
+        losses = np.stack((self.D_losses, self.C_losses), axis=-1)
+        losses_df = pd.DataFrame(data=losses, columns=['Discriminator', 'Generator'])
+        return losses_df
+        
     def generate_images(self, dataloader, data_processor, option='half'):
         """ Plot real and generated images with trained generator """
         print('\nGenerating images...')

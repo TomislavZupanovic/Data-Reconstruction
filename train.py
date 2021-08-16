@@ -6,6 +6,7 @@ from source.ae_gan import AEGAN
 from source.ccgan import CCGAN
 from datetime import datetime
 import argparse
+import pandas as pd
 import torch
 import os
 
@@ -40,6 +41,8 @@ if __name__ == '__main__':
         model.train(epochs=args.epochs, dataloader=data.dataloader, data_processor=data, option=args.masking, save_path=)
         model.plot_losses()
         model.generate_images(dataloader=data.dataloader, data_processor=data, option=args.masking)
+        losses = model.create_losses_df()
+        losses.to_csv(save_path.rsplit('/', 1)[0] + '/losses.csv')
         save = input('\nSave Generator? [y,n] ')
         if save == 'y':
             torch.save(model.generator.state_dict(), 

@@ -22,6 +22,7 @@ sdist/
 var/
 wheels/
 data/
+experiments/
 testing.py
 pip-wheel-metadata/
 share/python-wheels/
