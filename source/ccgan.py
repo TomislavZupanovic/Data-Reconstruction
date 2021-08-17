@@ -14,27 +14,43 @@ class CCGAN(object):
         self.adversarial_loss = None
         self.C_losses = None
         self.D_losses = None
-
+        self.config = None
+        
     def build(self):
         """ Initializes Generator, Discriminator models and their weights """
         print('\nBuilding CCGAN model...\n')
+        latent_vector = 100,
+        image_size = 64
+        channels = 3
+        learning_rate = 0.0002
+        beta1 = 0.5
         # Discriminator
-        discriminator = Discriminator(100, 64, 3)
+        discriminator = Discriminator(latent_vector, image_size, channels)
         discriminator.build()
         discriminator.apply(Discriminator.init_weights)
-        discriminator.define_optim(0.0002, 0.5)
+        discriminator.define_optim(learning_rate,beta1)
 
         # Generator(None for latent vector size, we don't need it)
-        generator = Generator(None, 64, 3)
+        generator = Generator(None, image_size, channels)
         generator.build()
         generator.apply(Generator.init_weights)
-        generator.define_optim(0.0002, 0.5)
+        generator.define_optim(learning_rate,beta1)
 
         self.generator = generator
         self.discriminator = discriminator
         # Define Criterion
         self.adversarial_loss = nn.MSELoss()
-
+        self.config = {
+            "Channels": channels,
+            "ImageSize": image_size,
+            "AdversarialLoss": "MSELoss",
+            "Optimizer": "Adam",
+            "LearningRate": learning_rate,
+            "Beta1": beta1,
+            "Beta2": 0.999,
+            "Epochs": None  
+        }
+        
     def print_models(self):
         """ Prints Generator and Discriminator architecture """
         if not self.discriminator or not self.generator:
@@ -46,7 +62,7 @@ class CCGAN(object):
             
     def save_sample(self, saved_samples: dict, batches_done: int, path: str) -> None:
         # Generate inpainted image
-        gen_imgs = self.context_encoder(saved_samples["masked"], saved_samples["lowres"])
+        gen_imgs = self.generator(saved_samples["masked"], saved_samples["lowres"])
         # Save sample
         sample = torch.cat((saved_samples["masked"].data, gen_imgs.data, saved_samples["imgs"].data), -2)
         save_path = path + f'/{batches_done}.png'
@@ -66,6 +82,7 @@ class CCGAN(object):
             device = torch.device('cpu')
         self.discriminator.to(device)
         self.generator.to(device)
+        self.config['Epochs'] = epochs
         saved_samples = {}
         print('\nStarting Training...')
         for epoch in range(epochs):

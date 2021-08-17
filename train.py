@@ -9,6 +9,7 @@ import argparse
 import pandas as pd
 import torch
 import os
+import json
 
 parser = argparse.ArgumentParser(description='Arguments Architecture and masking options')
 parser.add_argument('--arch', type=str, help='Defining which architecture to train.', 
@@ -38,11 +39,14 @@ if __name__ == '__main__':
     model.print_models()
     start_training = input('\nStart training? [y,n] ')
     if start_training == 'y':
-        model.train(epochs=args.epochs, dataloader=data.dataloader, data_processor=data, option=args.masking, save_path=)
+        model.train(epochs=args.epochs, dataloader=data.dataloader, data_processor=data, option=args.masking, save_path=save_path)
         model.plot_losses()
         model.generate_images(dataloader=data.dataloader, data_processor=data, option=args.masking)
+        print('\nSaving metadata... ')
         losses = model.create_losses_df()
         losses.to_csv(save_path.rsplit('/', 1)[0] + '/losses.csv')
+        with open(save_path.rsplit('/', 1)[0] + '/config.json', 'w') as file:
+            json.dump(model.config, file, sort_keys=True, indent=4)
         save = input('\nSave Generator? [y,n] ')
         if save == 'y':
             torch.save(model.generator.state_dict(), 
