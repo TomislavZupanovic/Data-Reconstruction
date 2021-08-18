@@ -11,7 +11,7 @@ class AEGAN(object):
     def __init__(self):
         self.discriminator = None
         self.generator = None
-        self.C_losses = None
+        self.G_losses = None
         self.D_losses = None
         self.adversarial_loss = None
         self.pixelwise_loss = None
@@ -63,6 +63,7 @@ class AEGAN(object):
             print(self.generator)
 
     def save_sample(self, saved_samples: dict, batches_done: int, path: str) -> None:
+        """ Save some generated images to save path folder """
         # Generate inpainted image
         gen_imgs = self.generator(saved_samples["masked"])
         # Save sample
@@ -74,7 +75,7 @@ class AEGAN(object):
         """ Trains Discriminator and Context Encoder """
         if not self.discriminator or not self.generator:
             raise AttributeError('First build AE-GAN.')
-        self.C_losses, self.D_losses = [], []
+        self.G_losses, self.D_losses = [], []
         real_label, fake_label = 1, 0
         if torch.cuda.is_available():
             print('\nGPU detected.')
@@ -127,7 +128,7 @@ class AEGAN(object):
                           f'Discriminator_Loss: {round(discriminator_loss.item(), 4)}, '
                           f'Context_Loss: {round(context_enc_loss.item(), 4)}')
                 if batch_num % 100 == 0:
-                    self.C_losses.append(context_enc_loss.item())
+                    self.G_losses.append(context_enc_loss.item())
                     self.D_losses.append(discriminator_loss.item())
                 
                 # Save first ten samples
@@ -146,10 +147,10 @@ class AEGAN(object):
     def plot_losses(self):
         """ Plots training losses """
         print('\nPlotting losses...')
-        if self.C_losses and self.D_losses:
+        if self.G_losses and self.D_losses:
             plt.figure(figsize=(10, 5))
             plt.title("ContextEncoder and Discriminator Loss")
-            plt.plot(self.C_losses, label="ContextEncoder")
+            plt.plot(self.G_losses, label="ContextEncoder")
             plt.plot(self.D_losses, label="Discriminator")
             plt.xlabel("Iterations (every 100th)")
             plt.ylabel("Loss")
@@ -160,7 +161,7 @@ class AEGAN(object):
         
     def create_losses_df(self):
         """ Saves Generator and Discriminator Losses """
-        losses = np.stack((self.D_losses, self.C_losses), axis=-1)
+        losses = np.stack((self.D_losses, self.G_losses), axis=-1)
         losses_df = pd.DataFrame(data=losses, columns=['Discriminator', 'Generator'])
         return losses_df
 

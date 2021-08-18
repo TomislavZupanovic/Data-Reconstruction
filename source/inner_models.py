@@ -155,7 +155,7 @@ class Discriminator(nn.Module):
         return self.main(input)
 
     def define_optim(self, learning_rate, beta1):
-        """ Initialize Loss Function and Optimizer """
+        """ Initialize Optimizer """
         self.optimizer = optim.Adam(self.main.parameters(), lr=learning_rate, betas=(beta1, 0.999))
 
     @staticmethod

@@ -4,6 +4,7 @@ from source.data_process import Data
 from source.dcgan import DCGAN
 from source.ae_gan import AEGAN
 from source.ccgan import CCGAN
+from source.baseline_cnn import CNN
 from datetime import datetime
 import argparse
 import pandas as pd
@@ -13,7 +14,7 @@ import json
 
 parser = argparse.ArgumentParser(description='Arguments Architecture and masking options')
 parser.add_argument('--arch', type=str, help='Defining which architecture to train.', 
-                    choices=['DCGAN', 'AEGAN', 'CCGAN'], required=True)
+                    choices=['DCGAN', 'AEGAN', 'CCGAN', 'CNN'], required=True)
 parser.add_argument('--masking', type=str, help='Defining the masking option', 
                     choices=['half', 'half_random', '10_random', '20_random'], required=True)
 parser.add_argument('--epochs', type=int, help='Number of Epochs for training', default=1)
@@ -24,18 +25,22 @@ if args.arch == 'AEGAN':
     model = AEGAN()
 elif args.arch == 'CCGAN':
     model = CCGAN()
+elif args.arch == 'CNN':
+    model = CNN(64, 3)
 else:
     model = DCGAN()
 training_time = datetime.now().strftime('%Y-%m-%d-%H%M')
 
 if __name__ == '__main__':
-    save_path = f'experiments/{args.arch}/{args.masking}/images_{training_time}'
+    save_path = f'experiments/{args.arch}/{args.masking}/run_{training_time}/generated_images'
     if not os.path.exists(save_path):
         os.makedirs(save_path, exist_ok=True)
     data.build_dataset(image_size=64, batch_size=128)
     data.plot_samples()
     # Build Model
     model.build()
+    if args.arch == 'CNN':
+        model.define_optim(learning_rate=0.001)
     model.print_models()
     start_training = input('\nStart training? [y,n] ')
     if start_training == 'y':
@@ -49,8 +54,12 @@ if __name__ == '__main__':
             json.dump(model.config, file, sort_keys=True, indent=4)
         save = input('\nSave Generator? [y,n] ')
         if save == 'y':
-            torch.save(model.generator.state_dict(), 
-                       f'experiments/{args.arch}/{args.masking}/Generator_{training_time}.pth')
+            if args.arch == 'CNN':
+                torch.save(model.state_dict(), 
+                           f'experiments/{args.arch}/{args.masking}/CNN_{training_time}.pth')
+            else:
+                torch.save(model.generator.state_dict(), 
+                        f'experiments/{args.arch}/{args.masking}/Generator_{training_time}.pth')
         else:
             pass
     else:
