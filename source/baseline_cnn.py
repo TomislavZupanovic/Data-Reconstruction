@@ -74,7 +74,7 @@ class CNN(nn.Module):
         # Save sample
         sample = torch.cat((saved_samples["masked"].data, gen_imgs.data, saved_samples["imgs"].data), -2)
         save_path = path + f'/{batches_done}.png'
-        save_image(sample, save_path, nrow=5, normalize=True)
+        save_image(sample, save_path, nrow=5, normalize=False)
     
     def print_models(self):
         """ Prints architecture """
