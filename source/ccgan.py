@@ -4,6 +4,7 @@ from torchvision.utils import save_image
 import torch
 import pandas as pd
 import torch.nn as nn
+import time
 import numpy as np
 
 
@@ -15,6 +16,7 @@ class CCGAN(object):
         self.G_losses = None
         self.D_losses = None
         self.config = None
+        self.performance = None
         
     def build(self):
         """ Initializes Generator, Discriminator models and their weights """
@@ -50,6 +52,11 @@ class CCGAN(object):
             "Beta2": 0.999,
             "Epochs": None  
         }
+        self.performance = {
+            "TrainingTime(s)": None,
+            "AverageEpochTime(s)": None,
+            "AverageBatchTime(s)": None
+        }
         
     def print_models(self):
         """ Prints Generator and Discriminator architecture """
@@ -69,7 +76,7 @@ class CCGAN(object):
         save_path = path + f'/{batches_done}.png'
         save_image(sample, save_path, nrow=5, normalize=True)
 
-    def train(self, epochs, dataloader, data_processor, option, save_path):
+    def fit(self, epochs, dataloader, data_processor, option, save_path):
         """ Trains Discriminator and Context Encoder """
         if not self.discriminator or not self.generator:
             raise AttributeError('First build AE-GAN.')
@@ -86,12 +93,16 @@ class CCGAN(object):
         self.config['Epochs'] = epochs
         saved_samples = {}
         print('\nStarting Training...')
+        training_start_time = time.time()
         for epoch in range(epochs):
             for batch_num, data in enumerate(dataloader, 0):
                 real_imgs = data[0].to(device)
-                masked_image, real_part, mask = data_processor.mask_images(data, option)
+                masked_image, _, _ = data_processor.mask_images(data, option)
                 resized_image = data_processor.resize_images(data)
                 batch_size = real_imgs.size(0)
+                # Use images on selected device
+                masked_image = masked_image.to(device)
+                resized_image = resized_image.to(device)
 
                 # Define Real and Fake labels
                 valid = torch.full((batch_size, 1, 8, 8), real_label, dtype=torch.float, device=device)
@@ -116,9 +127,9 @@ class CCGAN(object):
                 self.discriminator.optimizer.step()
                 
                 if batch_num % 50 == 0:
-                    print(f'[{epoch+1}/{epochs}][{batch_num}/{len(dataloader)}]\t'
-                          f'Discriminator_Loss: {round(discriminator_loss.item(), 4)}, '
-                          f'Generator_Loss: {round(generator_loss.item(), 4)}')
+                    print(f'[{epoch+1}/{epochs}][{batch_num}/{len(dataloader)}] '
+                          f'D_Loss: {round(discriminator_loss.item(), 4)}, '
+                          f'G_Loss: {round(generator_loss.item(), 4)}')
                 if batch_num % 100 == 0:
                     self.G_losses.append(generator_loss.item())
                     self.D_losses.append(discriminator_loss.item())
@@ -134,8 +145,14 @@ class CCGAN(object):
                     saved_samples["lowres"] = torch.cat((saved_samples["lowres"], resized_image[:1]), 0)
 
                 batches_done = epoch * len(dataloader) + batch_num
-                if batches_done % 300 == 0:
+                if batches_done % 500 == 0:
+                    self.generator.eval()
                     self.save_sample(saved_samples, batches_done, save_path)
+                    self.generator.train()
+        total_training_time = round(time.time() - training_start_time, 0)
+        self.performance['TrainingTime(s)'] = total_training_time
+        self.performance['AverageEpochTime(s)'] = round(total_training_time / epochs, 1)
+        self.performance['AverageBatchTime(s)'] = round((total_training_time / epochs) / len(dataloader), 3) 
         print('\nFinished training.')
         
     def plot_losses(self):

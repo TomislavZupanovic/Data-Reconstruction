@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import pandas as pd
+import time
 from torchvision.utils import save_image
 
 
@@ -16,6 +17,7 @@ class AEGAN(object):
         self.adversarial_loss = None
         self.pixelwise_loss = None
         self.config = None
+        self.performance = None
 
     def build(self):
         """ Initializes Context Encoder, Discriminator models and their weights """
@@ -52,6 +54,11 @@ class AEGAN(object):
             "Beta2": 0.999,
             "Epochs": None  
         }
+        self.performance = {
+            "TrainingTime(s)": None,
+            "AverageEpochTime(s)": None,
+            "AverageBatchTime(s)": None
+        }
 
     def print_models(self):
         """ Prints Context Encoder and Discriminator architecture """
@@ -71,7 +78,7 @@ class AEGAN(object):
         save_path = path + f'/{batches_done}.png'
         save_image(sample, save_path, nrow=5, normalize=True)
         
-    def train(self, epochs, dataloader, data_processor, option, save_path):
+    def fit(self, epochs, dataloader, data_processor, option, save_path):
         """ Trains Discriminator and Context Encoder """
         if not self.discriminator or not self.generator:
             raise AttributeError('First build AE-GAN.')
@@ -88,13 +95,16 @@ class AEGAN(object):
         self.config['Epochs'] = epochs
         saved_samples = {}
         print('\nStarting Training...')
+        training_start_time = time.time()
         for epoch in range(epochs):
             for batch_num, data in enumerate(dataloader, 0):
                 """ Defining mask area on images """
                 real_img = data[0].to(device)
                 masked_image, real_part, mask = data_processor.mask_images(data, option)
                 batch_size = real_img.size(0)
-
+                masked_image = masked_image.to(device)
+                real_part = real_part.to(device)
+                
                 # Define Real and Fake labels
                 valid = torch.full((batch_size, 1, 1, 1), real_label, dtype=torch.float, device=device)
                 fake = torch.full((batch_size, 1, 1, 1), fake_label, dtype=torch.float, device=device)
@@ -105,7 +115,8 @@ class AEGAN(object):
                 # Generate a batch of images
                 generated_images = self.generator(masked_image)
                 # Mask the generated images
-                generated_parts = generated_images[:, :, ~mask] = -1.0
+                generated_parts = generated_images.clone()
+                generated_parts[:, :, ~mask] = -1.0
                 # Adversarial and pixelwise loss
                 g_adv = self.adversarial_loss(self.discriminator(generated_parts), valid)
                 g_pixel = self.pixelwise_loss(generated_parts, real_part)
@@ -124,9 +135,9 @@ class AEGAN(object):
                 self.discriminator.optimizer.step()
 
                 if batch_num % 50 == 0:
-                    print(f'[{epoch+1}/{epochs}][{batch_num}/{len(dataloader)}]\t'
-                          f'Discriminator_Loss: {round(discriminator_loss.item(), 4)}, '
-                          f'Context_Loss: {round(context_enc_loss.item(), 4)}')
+                    print(f'[{epoch+1}/{epochs}][{batch_num}/{len(dataloader)}] '
+                          f'D_Loss: {round(discriminator_loss.item(), 4)}, '
+                          f'G_Loss: {round(context_enc_loss.item(), 4)}')
                 if batch_num % 100 == 0:
                     self.G_losses.append(context_enc_loss.item())
                     self.D_losses.append(discriminator_loss.item())
@@ -140,8 +151,14 @@ class AEGAN(object):
                     saved_samples["masked"] = torch.cat((saved_samples["masked"], masked_image[:1]), 0)
 
                 batches_done = epoch * len(dataloader) + batch_num
-                if batches_done % 300 == 0:
-                    self.save_sample(saved_samples, batches_done, save_path)            
+                if batches_done % 500 == 0:
+                    self.generator.eval()
+                    self.save_sample(saved_samples, batches_done, save_path)
+                    self.generator.train()  
+        total_training_time = round(time.time() - training_start_time, 0)
+        self.performance['TrainingTime(s)'] = total_training_time
+        self.performance['AverageEpochTime(s)'] = round(total_training_time / epochs, 1)
+        self.performance['AverageBatchTime(s)'] = round((total_training_time / epochs) / len(dataloader), 3)          
         print('\nFinished training.')
 
     def plot_losses(self):

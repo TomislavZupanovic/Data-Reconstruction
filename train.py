@@ -44,7 +44,7 @@ if __name__ == '__main__':
     model.print_models()
     start_training = input('\nStart training? [y,n] ')
     if start_training == 'y':
-        model.train(epochs=args.epochs, dataloader=data.dataloader, data_processor=data, option=args.masking, save_path=save_path)
+        model.fit(epochs=args.epochs, dataloader=data.dataloader, data_processor=data, option=args.masking, save_path=save_path)
         model.plot_losses()
         model.generate_images(dataloader=data.dataloader, data_processor=data, option=args.masking)
         print('\nSaving metadata... ')
@@ -52,6 +52,8 @@ if __name__ == '__main__':
         losses.to_csv(save_path.rsplit('/', 1)[0] + '/losses.csv')
         with open(save_path.rsplit('/', 1)[0] + '/config.json', 'w') as file:
             json.dump(model.config, file, sort_keys=True, indent=4)
+        with open(save_path.rsplit('/', 1)[0] + '/time_metrics.json', 'w') as perf:
+            json.dump(model.performance, perf, sort_keys=True, indent=4)
         save = input('\nSave Generator? [y,n] ')
         if save == 'y':
             if args.arch == 'CNN':

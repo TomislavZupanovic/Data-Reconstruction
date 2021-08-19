@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision.utils import save_image
 import matplotlib.pyplot as plt
+import time
 
 
 class CNN(nn.Module):
@@ -24,6 +25,11 @@ class CNN(nn.Module):
             "LearningRate": None,
             "Epochs": None
         }
+        self.performance = {
+            "TrainingTime(s)": None,
+            "AverageEpochTime(s)": None,
+            "AverageBatchTime(s)": None
+        }
         
     def build(self) -> None:
         """ Build the CNN model """
@@ -41,14 +47,10 @@ class CNN(nn.Module):
             nn.ReLU(inplace=True),
             nn.BatchNorm2d(self.feature_map * 4),
             # State size: (feature_map * 4) x 8 x 8
-            nn.Conv2d(self.feature_map * 4, self.feature_map * 8, 3, 1, 1),
-            nn.ReLU(inplace=True),
-            nn.BatchNorm2d(self.feature_map * 8)
-            # State size: (feature_map * 8) x 8 x 8
         )
         self.linear_layer = nn.Sequential(
-            # State size: 32768 -> 12288 (3 x 64 x 64)
-            nn.Linear(self.feature_map * 8 * 8 * 8, (self.feature_map ** 2) * self.channels)
+            # State size: 16384 -> 12288 (3 x 64 x 64)
+            nn.Linear(self.feature_map * 4 * 8 * 8, (self.feature_map ** 2) * self.channels)
         )
     
     def forward(self, input: Tensor) -> Tensor:
@@ -83,7 +85,7 @@ class CNN(nn.Module):
         else:
             print(self)
         
-    def train(self, epochs: int, dataloader, data_processor, option: str, save_path: str) -> None:
+    def fit(self, epochs: int, dataloader, data_processor, option: str, save_path: str) -> None:
         """ Trains the CNN on the training data with given number of epochs and masking option """
         self.Losses = []
         if torch.cuda.is_available():
@@ -92,10 +94,12 @@ class CNN(nn.Module):
         else:
             print('\nNo GPU detected, using CPU.')
             device = torch.device('cpu')
+        torch.cuda.empty_cache()
         self.to(device)
         self.config['Epochs'] = epochs
         saved_samples = {}
         print('\nStarting Training...')
+        training_start_time = time.time()
         for epoch in range(epochs):
             running_loss = 0.0
             for batch_num, data in enumerate(dataloader, 0):
@@ -103,9 +107,10 @@ class CNN(nn.Module):
                 real_img = data[0].to(device)
                 masked_image, _, _ = data_processor.mask_images(data, option)
                 batch_size = real_img.size(0)
+                masked_image = masked_image.to(device)
                 """ Start the training process """
                 # Put gradients to zero
-                self.optimizer.zero_grad()
+                self.zero_grad()
                 # Perform forward pass
                 output = self.forward(masked_image)
                 output_image = output.reshape(batch_size, self.channels, self.feature_map, self.feature_map)
@@ -130,8 +135,14 @@ class CNN(nn.Module):
                     saved_samples["imgs"] = torch.cat((saved_samples["imgs"], real_img[:1]), 0)
                     saved_samples["masked"] = torch.cat((saved_samples["masked"], masked_image[:1]), 0)
                 batches_done = epoch * len(dataloader) + batch_num
-                if batches_done % 300 == 0:
+                if batches_done % 500 == 0:
+                    self.eval()
                     self.save_sample(saved_samples, batches_done, save_path)
+                    self.train()
+        total_training_time = round(time.time() - training_start_time, 0)
+        self.performance['TrainingTime(s)'] = total_training_time
+        self.performance['AverageEpochTime(s)'] = round(total_training_time / epochs, 1)
+        self.performance['AverageBatchTime(s)'] = round((total_training_time / epochs) / len(dataloader), 3)
         print('\nFinished Training!')
     
     def plot_losses(self):
@@ -143,7 +154,6 @@ class CNN(nn.Module):
             plt.plot(self.Losses)
             plt.xlabel("Iterations (every 100th)")
             plt.ylabel("Loss")
-            plt.legend()
             plt.show()
         else:
             raise ValueError('First train CNN then plot losses.')
