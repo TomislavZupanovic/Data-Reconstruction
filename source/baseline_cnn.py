@@ -76,7 +76,7 @@ class CNN(nn.Module):
         # Save sample
         sample = torch.cat((saved_samples["masked"].data, gen_imgs.data, saved_samples["imgs"].data), -2)
         save_path = path + f'/{batches_done}.png'
-        save_image(sample, save_path, nrow=5, normalize=False)
+        save_image(sample, save_path, nrow=5, normalize=True)
     
     def print_models(self):
         """ Prints architecture """
@@ -135,7 +135,7 @@ class CNN(nn.Module):
                     saved_samples["imgs"] = torch.cat((saved_samples["imgs"], real_img[:1]), 0)
                     saved_samples["masked"] = torch.cat((saved_samples["masked"], masked_image[:1]), 0)
                 batches_done = epoch * len(dataloader) + batch_num
-                if batches_done % 500 == 0:
+                if batches_done % 1000 == 0:
                     self.eval()
                     self.save_sample(saved_samples, batches_done, save_path)
                     self.train()

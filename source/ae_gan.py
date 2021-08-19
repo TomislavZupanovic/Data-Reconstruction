@@ -151,7 +151,7 @@ class AEGAN(object):
                     saved_samples["masked"] = torch.cat((saved_samples["masked"], masked_image[:1]), 0)
 
                 batches_done = epoch * len(dataloader) + batch_num
-                if batches_done % 500 == 0:
+                if batches_done % 1000 == 0:
                     self.generator.eval()
                     self.save_sample(saved_samples, batches_done, save_path)
                     self.generator.train()  
