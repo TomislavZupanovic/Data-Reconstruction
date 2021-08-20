@@ -58,10 +58,10 @@ if __name__ == '__main__':
         if save == 'y':
             if args.arch == 'CNN':
                 torch.save(model.state_dict(), 
-                           f'experiments/{args.arch}/{args.masking}/CNN_{training_time}.pth')
+                           f'experiments/{args.arch}/{args.masking}/run_{training_time}/CNN_{training_time}.pth')
             else:
                 torch.save(model.generator.state_dict(), 
-                        f'experiments/{args.arch}/{args.masking}/Generator_{training_time}.pth')
+                        f'experiments/{args.arch}/{args.masking}/run_{training_time}/Generator_{training_time}.pth')
         else:
             pass
     else:

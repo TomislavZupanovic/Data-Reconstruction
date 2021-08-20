@@ -145,7 +145,7 @@ class CCGAN(object):
                     saved_samples["lowres"] = torch.cat((saved_samples["lowres"], resized_image[:1]), 0)
 
                 batches_done = epoch * len(dataloader) + batch_num
-                if batches_done % 1000 == 0:
+                if batches_done % 5000 == 0:
                     self.generator.eval()
                     self.save_sample(saved_samples, batches_done, save_path)
                     self.generator.train()
