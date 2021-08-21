@@ -23,6 +23,7 @@ var/
 wheels/
 data/
 experiments/
+notebooks/
 testing.py
 pip-wheel-metadata/
 share/python-wheels/

@@ -57,7 +57,8 @@ class AEGAN(object):
         self.performance = {
             "TrainingTime(s)": None,
             "AverageEpochTime(s)": None,
-            "AverageBatchTime(s)": None
+            "AverageBatchTime(s)": None,
+            "TestMSE": None
         }
 
     def print_models(self):
@@ -77,8 +78,17 @@ class AEGAN(object):
         sample = torch.cat((saved_samples["masked"].data, gen_imgs.data, saved_samples["imgs"].data), -2)
         save_path = path + f'/{batches_done}.png'
         save_image(sample, save_path, nrow=5, normalize=True)
+    
+    @staticmethod
+    def get_test_data(test_dataloader, data_processor, device, option):
+        """ Returns images for testing from test dataloader """
+        test_data = next(iter(test_dataloader))
+        test_real_img = test_data[0].to(device)
+        test_masked_image, _, _ = data_processor.mask_images(test_data, option)
+        test_masked_image = test_masked_image.to(device)
+        return test_real_img, test_masked_image
         
-    def fit(self, epochs, dataloader, data_processor, option, save_path):
+    def fit(self, epochs, train_dataloader, data_processor, option, save_path, test_dataloader):
         """ Trains Discriminator and Context Encoder """
         if not self.discriminator or not self.generator:
             raise AttributeError('First build AE-GAN.')
@@ -97,14 +107,17 @@ class AEGAN(object):
         print('\nStarting Training...')
         training_start_time = time.time()
         for epoch in range(epochs):
-            for batch_num, data in enumerate(dataloader, 0):
+            for batch_num, data in enumerate(train_dataloader, 0):
                 """ Defining mask area on images """
                 real_img = data[0].to(device)
                 masked_image, real_part, mask = data_processor.mask_images(data, option)
                 batch_size = real_img.size(0)
                 masked_image = masked_image.to(device)
                 real_part = real_part.to(device)
-                
+                if epoch <= 1:
+                    # Get testing images for generation
+                    test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
+                                                                     device, option)
                 # Define Real and Fake labels
                 valid = torch.full((batch_size, 1, 1, 1), real_label, dtype=torch.float, device=device)
                 fake = torch.full((batch_size, 1, 1, 1), fake_label, dtype=torch.float, device=device)
@@ -135,7 +148,7 @@ class AEGAN(object):
                 self.discriminator.optimizer.step()
 
                 if batch_num % 50 == 0:
-                    print(f'[{epoch+1}/{epochs}][{batch_num}/{len(dataloader)}] '
+                    print(f'[{epoch+1}/{epochs}][{batch_num}/{len(train_dataloader)}] '
                           f'D_Loss: {round(discriminator_loss.item(), 4)}, '
                           f'G_Loss: {round(context_enc_loss.item(), 4)}')
                 if batch_num % 100 == 0:
@@ -144,13 +157,13 @@ class AEGAN(object):
                 
                 # Save first ten samples
                 if not saved_samples:
-                    saved_samples["imgs"] = real_img[:1].clone()
-                    saved_samples["masked"] = masked_image[:1].clone()
+                    saved_samples["imgs"] = test_real_img[:1].clone()
+                    saved_samples["masked"] = test_masked_image[:1].clone()
                 elif saved_samples["imgs"].size(0) < 10:
-                    saved_samples["imgs"] = torch.cat((saved_samples["imgs"], real_img[:1]), 0)
-                    saved_samples["masked"] = torch.cat((saved_samples["masked"], masked_image[:1]), 0)
+                    saved_samples["imgs"] = torch.cat((saved_samples["imgs"], test_real_img[:1]), 0)
+                    saved_samples["masked"] = torch.cat((saved_samples["masked"], test_masked_image[:1]), 0)
 
-                batches_done = epoch * len(dataloader) + batch_num
+                batches_done = epoch * len(train_dataloader) + batch_num
                 if batches_done % 5000 == 0:
                     self.generator.eval()
                     self.save_sample(saved_samples, batches_done, save_path)
@@ -158,9 +171,26 @@ class AEGAN(object):
         total_training_time = round(time.time() - training_start_time, 0)
         self.performance['TrainingTime(s)'] = total_training_time
         self.performance['AverageEpochTime(s)'] = round(total_training_time / epochs, 1)
-        self.performance['AverageBatchTime(s)'] = round((total_training_time / epochs) / len(dataloader), 3)          
+        self.performance['AverageBatchTime(s)'] = round((total_training_time / epochs) / len(train_dataloader), 3)          
         print('\nFinished training.')
-
+        
+    def test(self, test_dataloader, data_processor, option, path):
+        """ Calculate the Test MSE """
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        else:
+            device = torch.device('cpu')
+        self.generator.to(device)
+        test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
+                                                                     device, option)
+        output_image = self.generator(test_masked_image)
+        test_loss = self.adversarial_loss(output_image, test_real_img)
+        self.performance['TestMSE'] = round(test_loss.item(), 5)
+        # Save the generated images
+        sample = torch.cat((test_masked_image[:10].data, output_image[:10].data, test_real_img[:10].data), -2)
+        save_path = path + f'/test.png'
+        save_image(sample, save_path, nrow=5, normalize=True)
+        
     def plot_losses(self):
         """ Plots training losses """
         print('\nPlotting losses...')
@@ -182,10 +212,10 @@ class AEGAN(object):
         losses_df = pd.DataFrame(data=losses, columns=['Discriminator', 'Generator'])
         return losses_df
 
-    def generate_images(self, dataloader, data_processor, option='half'):
+    def generate_images(self, test_dataloader, data_processor, option='half'):
         """ Plot real and generated images with trained generator """
         print('\nGenerating images...')
-        data = next(iter(dataloader))
+        data = next(iter(test_dataloader))
         masked_images, _, _ = data_processor.mask_images(data, option)
         self.generator.to('cpu')
         self.generator.eval()

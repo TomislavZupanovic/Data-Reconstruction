@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+from torch import optim
 from source.data_process import Data
 from source.dcgan import DCGAN
 from source.ae_gan import AEGAN
@@ -20,7 +21,7 @@ parser.add_argument('--masking', type=str, help='Defining the masking option',
 parser.add_argument('--epochs', type=int, help='Number of Epochs for training', default=1)
 args = parser.parse_args()
 
-data = Data('source/data')
+data = Data('source/data/celeba')
 if args.arch == 'AEGAN':
     model = AEGAN()
 elif args.arch == 'CCGAN':
@@ -44,15 +45,17 @@ if __name__ == '__main__':
     model.print_models()
     start_training = input('\nStart training? [y,n] ')
     if start_training == 'y':
-        model.fit(epochs=args.epochs, dataloader=data.dataloader, data_processor=data, option=args.masking, save_path=save_path)
+        model.fit(epochs=args.epochs, train_dataloader=data.train_dataloader, data_processor=data, 
+                  option=args.masking, save_path=save_path, test_dataloader=data.test_dataloader)
         model.plot_losses()
-        model.generate_images(dataloader=data.dataloader, data_processor=data, option=args.masking)
+        model.generate_images(test_dataloader=data.test_dataloader, data_processor=data, option=args.masking)
+        model.test(test_dataloader=data.test_dataloader, data_processor=data, option=args.masking, path=save_path)
         print('\nSaving metadata... ')
         losses = model.create_losses_df()
         losses.to_csv(save_path.rsplit('/', 1)[0] + '/losses.csv')
         with open(save_path.rsplit('/', 1)[0] + '/config.json', 'w') as file:
             json.dump(model.config, file, sort_keys=True, indent=4)
-        with open(save_path.rsplit('/', 1)[0] + '/time_metrics.json', 'w') as perf:
+        with open(save_path.rsplit('/', 1)[0] + '/metrics.json', 'w') as perf:
             json.dump(model.performance, perf, sort_keys=True, indent=4)
         save = input('\nSave Generator? [y,n] ')
         if save == 'y':

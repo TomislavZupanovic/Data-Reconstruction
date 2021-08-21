@@ -9,7 +9,8 @@ import numpy as np
 class Data:
     def __init__(self, path):
         self.path = path
-        self.dataloader = None
+        self.train_dataloader = None
+        self.test_dataloader = None
 
     def build_dataset(self, image_size, batch_size):
         """ Builds DataLoader for iterating through data """
@@ -19,8 +20,10 @@ class Data:
                                         transforms.ToTensor(),
                                         transforms.Normalize((0.5, 0.5, 0.5),
                                                              (0.5, 0.5, 0.5))])
-        dataset = datasets.ImageFolder(root=self.path, transform=transform)
-        self.dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        train_dataset = datasets.ImageFolder(root=self.path + '/train', transform=transform)
+        test_dataset = datasets.ImageFolder(root=self.path + '/test', transform=transform)
+        self.train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        self.test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
     @staticmethod
     def mask_images(data, option='half'):
@@ -62,7 +65,7 @@ class Data:
         """ Plots some image samples from dataloader """
         print('\nPlotting some image samples...')
         # Iterate over data with specified batch_size of 128
-        images, labels = next(iter(self.dataloader))
+        images, labels = next(iter(self.train_dataloader))
         fig = plt.figure(1, figsize=(15, 5))
         for idx in range(10):
             # Make plotting grid

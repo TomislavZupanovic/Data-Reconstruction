@@ -28,7 +28,8 @@ class CNN(nn.Module):
         self.performance = {
             "TrainingTime(s)": None,
             "AverageEpochTime(s)": None,
-            "AverageBatchTime(s)": None
+            "AverageBatchTime(s)": None,
+            "TestMSE": None
         }
         
     def build(self) -> None:
@@ -84,8 +85,17 @@ class CNN(nn.Module):
             raise AttributeError('First build Model.')
         else:
             print(self)
-        
-    def fit(self, epochs: int, dataloader, data_processor, option: str, save_path: str) -> None:
+    
+    @staticmethod
+    def get_test_data(test_dataloader, data_processor, device, option):
+        """ Returns images for testing from test dataloader """
+        test_data = next(iter(test_dataloader))
+        test_real_img = test_data[0].to(device)
+        test_masked_image, _, _ = data_processor.mask_images(test_data, option)
+        test_masked_image = test_masked_image.to(device)
+        return test_real_img, test_masked_image
+    
+    def fit(self, epochs: int, train_dataloader, data_processor, option: str, save_path: str, test_dataloader) -> None:
         """ Trains the CNN on the training data with given number of epochs and masking option """
         self.Losses = []
         if torch.cuda.is_available():
@@ -102,12 +112,16 @@ class CNN(nn.Module):
         training_start_time = time.time()
         for epoch in range(epochs):
             running_loss = 0.0
-            for batch_num, data in enumerate(dataloader, 0):
+            for batch_num, data in enumerate(train_dataloader, 0):
                 """ Defining mask area on images """
                 real_img = data[0].to(device)
                 masked_image, _, _ = data_processor.mask_images(data, option)
                 batch_size = real_img.size(0)
                 masked_image = masked_image.to(device)
+                if epoch <= 1:
+                    # Get testing images for generation
+                    test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
+                                                                     device, option)
                 """ Start the training process """
                 # Put gradients to zero
                 self.zero_grad()
@@ -122,19 +136,19 @@ class CNN(nn.Module):
                 running_loss += loss.item()
                 """ Print the average loss """
                 if batch_num % 50 == 0:
-                    print(f'[{epoch+1}/{epochs}][{batch_num}/{len(dataloader)}], Avg. Loss: {round(running_loss / 50, 4)}')
+                    print(f'[{epoch+1}/{epochs}][{batch_num}/{len(train_dataloader)}], Avg. Loss: {round(running_loss / 50, 4)}')
                     running_loss = 0.0
                 if batch_num % 100 == 0:
                     self.Losses.append(loss.item())
                     
                 # Save first ten samples
                 if not saved_samples:
-                    saved_samples["imgs"] = real_img[:1].clone()
-                    saved_samples["masked"] = masked_image[:1].clone()
+                    saved_samples["imgs"] = test_real_img[:1].clone()
+                    saved_samples["masked"] = test_masked_image[:1].clone()
                 elif saved_samples["imgs"].size(0) < 10:
-                    saved_samples["imgs"] = torch.cat((saved_samples["imgs"], real_img[:1]), 0)
-                    saved_samples["masked"] = torch.cat((saved_samples["masked"], masked_image[:1]), 0)
-                batches_done = epoch * len(dataloader) + batch_num
+                    saved_samples["imgs"] = torch.cat((saved_samples["imgs"], test_real_img[:1]), 0)
+                    saved_samples["masked"] = torch.cat((saved_samples["masked"], test_masked_image[:1]), 0)
+                batches_done = epoch * len(train_dataloader) + batch_num
                 if batches_done % 5000 == 0:
                     self.eval()
                     self.save_sample(saved_samples, batches_done, save_path)
@@ -142,9 +156,29 @@ class CNN(nn.Module):
         total_training_time = round(time.time() - training_start_time, 0)
         self.performance['TrainingTime(s)'] = total_training_time
         self.performance['AverageEpochTime(s)'] = round(total_training_time / epochs, 1)
-        self.performance['AverageBatchTime(s)'] = round((total_training_time / epochs) / len(dataloader), 3)
+        self.performance['AverageBatchTime(s)'] = round((total_training_time / epochs) / len(train_dataloader), 3)
         print('\nFinished Training!')
     
+    def test(self, test_dataloader, data_processor, option, path):
+        """ Calculate the Test MSE and save generated test images """
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        else:
+            device = torch.device('cpu')
+        self.to(device)
+        test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
+                                                              device, option)
+        batch_size = test_real_img.size(0)
+        # Generate images and calculate MSE 
+        output = self.forward(test_masked_image)
+        output_image = output.reshape(batch_size, self.channels, self.feature_map, self.feature_map)
+        test_loss = self.criterion(output_image, test_real_img)
+        self.performance['TestMSE'] = round(test_loss.item(), 5)
+        # Save the generated images
+        sample = torch.cat((test_masked_image[:10].data, output_image[:10].data, test_real_img[:10].data), -2)
+        save_path = path + f'/test.png'
+        save_image(sample, save_path, nrow=5, normalize=True)
+        
     def plot_losses(self):
         """ Plots training losses """
         print('\nPlotting losses...')
@@ -163,10 +197,10 @@ class CNN(nn.Module):
         losses_df = pd.DataFrame(data=self.Losses, columns=['MSELoss'])
         return losses_df
     
-    def generate_images(self, dataloader, data_processor, option):
+    def generate_images(self, test_dataloader, data_processor, option):
         """ Plot real and generated images with trained generator """
         print('\nGenerating images...')
-        data = next(iter(dataloader))
+        data = next(iter(test_dataloader))
         masked_images, _, _ = data_processor.mask_images(data, option)
         self.to('cpu')
         fig = plt.figure(1, figsize=(15, 5))
