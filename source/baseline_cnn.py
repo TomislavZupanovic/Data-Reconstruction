@@ -165,19 +165,22 @@ class CNN(nn.Module):
             device = torch.device('cuda')
         else:
             device = torch.device('cpu')
-        self.to(device)
-        test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
-                                                              device, option)
-        batch_size = test_real_img.size(0)
-        # Generate images and calculate MSE 
-        output = self.forward(test_masked_image)
-        output_image = output.reshape(batch_size, self.channels, self.feature_map, self.feature_map)
-        test_loss = self.criterion(output_image, test_real_img)
-        self.performance['TestMSE'] = round(test_loss.item(), 5)
-        # Save the generated images
-        sample = torch.cat((test_masked_image[:10].data, output_image[:10].data, test_real_img[:10].data), -2)
-        save_path = path + f'/test.png'
-        save_image(sample, save_path, nrow=5, normalize=True)
+        with torch.no_grad():
+            self.to(device)
+            self.eval()
+            test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
+                                                                device, option)
+            batch_size = test_real_img.size(0)
+            # Generate images and calculate MSE 
+            output = self.forward(test_masked_image)
+            output_image = output.reshape(batch_size, self.channels, self.feature_map, self.feature_map)
+            test_loss = self.criterion(output_image, test_real_img)
+            self.performance['TestMSE'] = round(test_loss.item(), 5)
+            # Save the generated images
+            sample = torch.cat((test_masked_image[:10].data, output_image[:10].data, test_real_img[:10].data), -2)
+            save_path = path + f'/test.png'
+            save_image(sample, save_path, nrow=5, normalize=True)
+            self.train()
         
     def plot_losses(self):
         """ Plots training losses """

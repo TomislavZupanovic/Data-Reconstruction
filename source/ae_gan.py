@@ -180,16 +180,19 @@ class AEGAN(object):
             device = torch.device('cuda')
         else:
             device = torch.device('cpu')
-        self.generator.to(device)
-        test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
-                                                                     device, option)
-        output_image = self.generator(test_masked_image)
-        test_loss = self.adversarial_loss(output_image, test_real_img)
-        self.performance['TestMSE'] = round(test_loss.item(), 5)
-        # Save the generated images
-        sample = torch.cat((test_masked_image[:10].data, output_image[:10].data, test_real_img[:10].data), -2)
-        save_path = path + f'/test.png'
-        save_image(sample, save_path, nrow=5, normalize=True)
+        with torch.no_grad():
+            self.generator.to(device)
+            self.generator.eval()
+            test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
+                                                                        device, option)
+            output_image = self.generator(test_masked_image)
+            test_loss = self.adversarial_loss(output_image, test_real_img)
+            self.performance['TestMSE'] = round(test_loss.item(), 5)
+            # Save the generated images
+            sample = torch.cat((test_masked_image[:10].data, output_image[:10].data, test_real_img[:10].data), -2)
+            save_path = path + f'/test.png'
+            save_image(sample, save_path, nrow=5, normalize=True)
+            self.generator.train()
         
     def plot_losses(self):
         """ Plots training losses """
