@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(description='Arguments Architecture and masking
 parser.add_argument('--arch', type=str, help='Defining which architecture to train.', 
                     choices=['DCGAN', 'AEGAN', 'CCGAN', 'CNN'], required=True)
 parser.add_argument('--masking', type=str, help='Defining the masking option', 
-                    choices=['half', 'half_random', '10_random', '20_random'], required=True)
+                    choices=['half', 'half_random', '10_random', '20_random', '5_random'], required=True)
 parser.add_argument('--epochs', type=int, help='Number of Epochs for training', default=1)
 args = parser.parse_args()
 

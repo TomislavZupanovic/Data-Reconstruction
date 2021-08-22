@@ -134,19 +134,18 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             # State size: (feature_map) x 32 x 32
             nn.Conv2d(self.feature_map, self.feature_map * 2, 4, 2, 1, bias=bias),
-            nn.BatchNorm2d(self.feature_map * 2),
+            nn.InstanceNorm2d(self.feature_map * 2),
             nn.LeakyReLU(0.2, inplace=True),
             # State size: (feature_map * 2) x 16 x 16
             nn.Conv2d(self.feature_map * 2, self.feature_map * 4, 4, 2, 1, bias=bias),
-            nn.BatchNorm2d(self.feature_map * 4),
+            nn.InstanceNorm2d(self.feature_map * 4),
             nn.LeakyReLU(0.2, inplace=True),
             # State size: (feature_map * 4) x 8 x 8
             nn.Conv2d(self.feature_map * 4, self.feature_map * 8, 4, 2, 1, bias=bias),
-            nn.BatchNorm2d(self.feature_map * 8),
+            nn.InstanceNorm2d(self.feature_map * 8),
             nn.LeakyReLU(0.2, inplace=True),
             # State size: (feature_map * 8) x 4 x 4
-            nn.Conv2d(self.feature_map * 8, 1, 4, 1, 0, bias=bias),
-            nn.Sigmoid()
+            nn.Conv2d(self.feature_map * 8, 1, 4, 1, 0, bias=bias)
             # Output size: 1 x 1 x 1
         )
 

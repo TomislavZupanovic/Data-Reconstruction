@@ -68,11 +68,12 @@ class CCGAN(object):
             print('\n', '=' * 90, '\n')
             print(self.generator)
             
-    def save_sample(self, saved_samples: dict, batches_done: int, path: str) -> None:
+    def save_sample(self, saved_samples: dict, batches_done: int, path: str, mask) -> None:
         """ Save some generated images to save path folder """
         # Generate inpainted image
         gen_imgs = self.generator(saved_samples["masked"], saved_samples["lowres"])
         # Save sample
+        gen_imgs[:, :, ~mask] = saved_samples['masked'][:, :, ~mask]
         sample = torch.cat((saved_samples["masked"].data, gen_imgs.data, saved_samples["imgs"].data), -2)
         save_path = path + f'/{batches_done}.png'
         save_image(sample, save_path, nrow=5, normalize=True)
@@ -82,11 +83,11 @@ class CCGAN(object):
         """ Returns images for testing from test train_dataloader """
         test_data = next(iter(test_train_dataloader))
         test_real_img = test_data[0].to(device)
-        test_masked_image, _, _ = data_processor.mask_images(test_data, option)
+        test_masked_image, _, test_mask = data_processor.mask_images(test_data, option)
         test_resized_image = data_processor.resize_images(test_data)
         test_masked_image = test_masked_image.to(device)
         test_resized_image = test_resized_image.to(device)
-        return test_real_img, test_masked_image, test_resized_image
+        return test_real_img, test_masked_image, test_resized_image, test_mask
 
     def fit(self, epochs, train_dataloader, data_processor, option, save_path, test_dataloader):
         """ Trains Discriminator and Context Encoder """
@@ -115,9 +116,9 @@ class CCGAN(object):
                 # Use images on selected device
                 masked_image = masked_image.to(device)
                 resized_image = resized_image.to(device)
-                if epoch <= 1:
+                if epoch == 0 and batch_num == 0:
                     # Get testing images for generation
-                    test_real_img, test_masked_image, test_resized_image = self.get_test_data(test_dataloader, 
+                    test_real_img, test_masked_image, test_resized_image, test_mask = self.get_test_data(test_dataloader, 
                                                                                               data_processor, 
                                                                                               device, option)
                 # Define Real and Fake labels
@@ -152,18 +153,14 @@ class CCGAN(object):
                     
                 # Save first ten samples
                 if not saved_samples:
-                    saved_samples["imgs"] = test_real_img[:1].clone()
-                    saved_samples["masked"] = test_masked_image[:1].clone()
-                    saved_samples["lowres"] = test_resized_image[:1].clone()
-                elif saved_samples["imgs"].size(0) < 10:
-                    saved_samples["imgs"] = torch.cat((saved_samples["imgs"], test_real_img[:1]), 0)
-                    saved_samples["masked"] = torch.cat((saved_samples["masked"], test_masked_image[:1]), 0)
-                    saved_samples["lowres"] = torch.cat((saved_samples["lowres"], test_resized_image[:1]), 0)
+                    saved_samples["imgs"] = test_real_img[:10].clone()
+                    saved_samples["masked"] = test_masked_image[:10].clone()
+                    saved_samples["lowres"] = test_resized_image[:10].clone()
 
                 batches_done = epoch * len(train_dataloader) + batch_num
                 if batches_done % 5000 == 0:
                     self.generator.eval()
-                    self.save_sample(saved_samples, batches_done, save_path)
+                    self.save_sample(saved_samples, batches_done, save_path, test_mask)
                     self.generator.train()
         total_training_time = round(time.time() - training_start_time, 0)
         self.performance['TrainingTime(s)'] = total_training_time
@@ -180,12 +177,13 @@ class CCGAN(object):
         with torch.no_grad():
             self.generator.to(device)
             self.generator.eval()
-            test_real_img, test_masked_image, test_resized_image = self.get_test_data(test_dataloader, data_processor, 
+            test_real_img, test_masked_image, test_resized_image, mask = self.get_test_data(test_dataloader, data_processor, 
                                                                         device, option)
             output_image = self.generator(test_masked_image, test_resized_image)
             test_loss = self.adversarial_loss(output_image, test_real_img)
             self.performance['TestMSE'] = round(test_loss.item(), 5)
             # Save the generated images
+            output_image[:, :, ~mask] = test_masked_image[:, :, ~mask]
             sample = torch.cat((test_masked_image[:10].data, output_image[:10].data, test_real_img[:10].data), -2)
             save_path = path + f'/test.png'
             save_image(sample, save_path, nrow=5, normalize=True)

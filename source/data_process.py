@@ -28,8 +28,8 @@ class Data:
     @staticmethod
     def mask_images(data, option='half'):
         """ Masks the input images with option for 50%, 80% and 90% of image as pixels to reconstruct """
-        valid_options = ('half', 'half_random', '10_random', '20_random')
-        multipliers = {'half': 0.5, 'half_random': 0.5, '10_random': 0.9, '20_random': 0.8}
+        valid_options = ('half', 'half_random', '10_random', '20_random', '5_random')
+        multipliers = {'half': 0.5, 'half_random': 0.5, '10_random': 0.9, '20_random': 0.8, '5_random': 0.95}
         if option not in valid_options:
             raise ValueError(f"Option must be one of: {valid_options}")
         real_img = data[0]

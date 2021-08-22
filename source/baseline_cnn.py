@@ -69,12 +69,13 @@ class CNN(nn.Module):
         self.config['LossFunction'] = "MSELoss"
         self.config['Optimizer'] = 'Adam'
     
-    def save_sample(self, saved_samples: dict, batches_done: int, path: str) -> None:
+    def save_sample(self, saved_samples: dict, batches_done: int, path: str, mask) -> None:
         """ Save some generated images to save path folder """
         # Generate inpainted image
         output = self.forward(saved_samples["masked"])
         gen_imgs = output.reshape(output.size(0), self.channels, self.feature_map, self.feature_map)
         # Save sample
+        gen_imgs[:, :, ~mask] = saved_samples['masked'][:, :, ~mask]
         sample = torch.cat((saved_samples["masked"].data, gen_imgs.data, saved_samples["imgs"].data), -2)
         save_path = path + f'/{batches_done}.png'
         save_image(sample, save_path, nrow=5, normalize=True)
@@ -91,9 +92,9 @@ class CNN(nn.Module):
         """ Returns images for testing from test dataloader """
         test_data = next(iter(test_dataloader))
         test_real_img = test_data[0].to(device)
-        test_masked_image, _, _ = data_processor.mask_images(test_data, option)
+        test_masked_image, test_real_part, test_mask = data_processor.mask_images(test_data, option)
         test_masked_image = test_masked_image.to(device)
-        return test_real_img, test_masked_image
+        return test_real_img, test_masked_image, test_mask
     
     def fit(self, epochs: int, train_dataloader, data_processor, option: str, save_path: str, test_dataloader) -> None:
         """ Trains the CNN on the training data with given number of epochs and masking option """
@@ -118,9 +119,9 @@ class CNN(nn.Module):
                 masked_image, _, _ = data_processor.mask_images(data, option)
                 batch_size = real_img.size(0)
                 masked_image = masked_image.to(device)
-                if epoch <= 1:
+                if epoch == 0 and batch_num == 0:
                     # Get testing images for generation
-                    test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
+                    test_real_img, test_masked_image, test_mask = self.get_test_data(test_dataloader, data_processor, 
                                                                      device, option)
                 """ Start the training process """
                 # Put gradients to zero
@@ -143,15 +144,13 @@ class CNN(nn.Module):
                     
                 # Save first ten samples
                 if not saved_samples:
-                    saved_samples["imgs"] = test_real_img[:1].clone()
-                    saved_samples["masked"] = test_masked_image[:1].clone()
-                elif saved_samples["imgs"].size(0) < 10:
-                    saved_samples["imgs"] = torch.cat((saved_samples["imgs"], test_real_img[:1]), 0)
-                    saved_samples["masked"] = torch.cat((saved_samples["masked"], test_masked_image[:1]), 0)
+                    saved_samples["imgs"] = test_real_img[:10].clone()
+                    saved_samples["masked"] = test_masked_image[:10].clone()
+                
                 batches_done = epoch * len(train_dataloader) + batch_num
                 if batches_done % 5000 == 0:
                     self.eval()
-                    self.save_sample(saved_samples, batches_done, save_path)
+                    self.save_sample(saved_samples, batches_done, save_path, test_mask)
                     self.train()
         total_training_time = round(time.time() - training_start_time, 0)
         self.performance['TrainingTime(s)'] = total_training_time
@@ -168,7 +167,7 @@ class CNN(nn.Module):
         with torch.no_grad():
             self.to(device)
             self.eval()
-            test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
+            test_real_img, test_masked_image, mask = self.get_test_data(test_dataloader, data_processor, 
                                                                 device, option)
             batch_size = test_real_img.size(0)
             # Generate images and calculate MSE 
@@ -177,6 +176,7 @@ class CNN(nn.Module):
             test_loss = self.criterion(output_image, test_real_img)
             self.performance['TestMSE'] = round(test_loss.item(), 5)
             # Save the generated images
+            output_image[:, :, ~mask] = test_masked_image[:, :, ~mask]
             sample = torch.cat((test_masked_image[:10].data, output_image[:10].data, test_real_img[:10].data), -2)
             save_path = path + f'/test.png'
             save_image(sample, save_path, nrow=5, normalize=True)

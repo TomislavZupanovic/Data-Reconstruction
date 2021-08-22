@@ -70,11 +70,12 @@ class AEGAN(object):
             print('\n', '=' * 90, '\n')
             print(self.generator)
 
-    def save_sample(self, saved_samples: dict, batches_done: int, path: str) -> None:
+    def save_sample(self, saved_samples: dict, batches_done: int, path: str, mask) -> None:
         """ Save some generated images to save path folder """
         # Generate inpainted image
         gen_imgs = self.generator(saved_samples["masked"])
         # Save sample
+        gen_imgs[:, :, ~mask] = saved_samples['masked'][:, :, ~mask]
         sample = torch.cat((saved_samples["masked"].data, gen_imgs.data, saved_samples["imgs"].data), -2)
         save_path = path + f'/{batches_done}.png'
         save_image(sample, save_path, nrow=5, normalize=True)
@@ -84,9 +85,9 @@ class AEGAN(object):
         """ Returns images for testing from test dataloader """
         test_data = next(iter(test_dataloader))
         test_real_img = test_data[0].to(device)
-        test_masked_image, _, _ = data_processor.mask_images(test_data, option)
+        test_masked_image, real_part, mask = data_processor.mask_images(test_data, option)
         test_masked_image = test_masked_image.to(device)
-        return test_real_img, test_masked_image
+        return test_real_img, test_masked_image, mask
         
     def fit(self, epochs, train_dataloader, data_processor, option, save_path, test_dataloader):
         """ Trains Discriminator and Context Encoder """
@@ -114,9 +115,9 @@ class AEGAN(object):
                 batch_size = real_img.size(0)
                 masked_image = masked_image.to(device)
                 real_part = real_part.to(device)
-                if epoch <= 1:
+                if epoch == 0 and batch_num == 0:
                     # Get testing images for generation
-                    test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
+                    test_real_img, test_masked_image, test_mask = self.get_test_data(test_dataloader, data_processor, 
                                                                      device, option)
                 # Define Real and Fake labels
                 valid = torch.full((batch_size, 1, 1, 1), real_label, dtype=torch.float, device=device)
@@ -157,16 +158,13 @@ class AEGAN(object):
                 
                 # Save first ten samples
                 if not saved_samples:
-                    saved_samples["imgs"] = test_real_img[:1].clone()
-                    saved_samples["masked"] = test_masked_image[:1].clone()
-                elif saved_samples["imgs"].size(0) < 10:
-                    saved_samples["imgs"] = torch.cat((saved_samples["imgs"], test_real_img[:1]), 0)
-                    saved_samples["masked"] = torch.cat((saved_samples["masked"], test_masked_image[:1]), 0)
+                    saved_samples["imgs"] = test_real_img[:10].clone()
+                    saved_samples["masked"] = test_masked_image[:10].clone()
 
                 batches_done = epoch * len(train_dataloader) + batch_num
                 if batches_done % 5000 == 0:
                     self.generator.eval()
-                    self.save_sample(saved_samples, batches_done, save_path)
+                    self.save_sample(saved_samples, batches_done, save_path, test_mask)
                     self.generator.train()  
         total_training_time = round(time.time() - training_start_time, 0)
         self.performance['TrainingTime(s)'] = total_training_time
@@ -183,12 +181,13 @@ class AEGAN(object):
         with torch.no_grad():
             self.generator.to(device)
             self.generator.eval()
-            test_real_img, test_masked_image = self.get_test_data(test_dataloader, data_processor, 
+            test_real_img, test_masked_image, mask = self.get_test_data(test_dataloader, data_processor, 
                                                                         device, option)
             output_image = self.generator(test_masked_image)
             test_loss = self.adversarial_loss(output_image, test_real_img)
             self.performance['TestMSE'] = round(test_loss.item(), 5)
             # Save the generated images
+            output_image[:, :, ~mask] = test_masked_image[:, :, ~mask]
             sample = torch.cat((test_masked_image[:10].data, output_image[:10].data, test_real_img[:10].data), -2)
             save_path = path + f'/test.png'
             save_image(sample, save_path, nrow=5, normalize=True)
