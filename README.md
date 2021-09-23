@@ -1,6 +1,8 @@
 # Data Completion and Reconstruction using Deep Learning
 Using Generative Adversarial Network for sensor development based on data from various environments.
 
+**TODO**
+
 **Installation**
 
 - Clone repository on your machine:
