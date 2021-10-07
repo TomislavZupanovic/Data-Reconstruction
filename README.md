@@ -11,5 +11,5 @@ Using Generative Adversarial Network for sensor development based on data from v
 
 - Dataset [Download](https://demo-tomislav-bucket.s3.eu-central-1.amazonaws.com/data.rar)
 
-Unzip in cloned repository to have path like this:
+Unzip in cloned repository.
  
