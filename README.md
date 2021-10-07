@@ -1,5 +1,5 @@
 # Data Completion and Reconstruction using Deep Learning
-Using Generative Adversarial Network for sensor development based on data from various environments.
+Using Deep Learning methods based on CNNs and GANs for data completion and reconstruction.
 
 **TODO**
 
