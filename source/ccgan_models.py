@@ -49,22 +49,36 @@ class Generator(nn.Module):
 
     def build(self):
         """ U-NET network for CCGAN """
+        # Input state: channels x 64 x 64
         self.down1 = UNetDown(self.channels, self.feature_map, normalize=False)
+        # State size: feature_map x 32 x 32
         self.down2 = UNetDown(self.feature_map, self.feature_map * 2)
+        # State size: (feature_map * 2) x 16 x 16
         self.down3 = UNetDown((self.feature_map * 2) + self.channels, self.feature_map * 4, dropout=0.5)
+        # State size: (feature_map * 4) x 8 x 8
         self.down4 = UNetDown(self.feature_map * 4, self.feature_map * 8, dropout=0.5)
+        # State size: (feature_map * 8) x 4 x 4
         self.down5 = UNetDown(self.feature_map * 8, self.feature_map * 8, dropout=0.5)
+        # State size: (feature_map * 8) x 2 x 2 
         self.down6 = UNetDown(self.feature_map * 8, self.feature_map * 8, dropout=0.5)
+        # State size: (feature_map * 8) x 1 x 1
 
         self.up1 = UNetUp(self.feature_map * 8, self.feature_map * 8, dropout=0.5)
+        # State size: (feature_map * 8) x 2 x 2
         self.up2 = UNetUp(self.feature_map * 16, self.feature_map * 8, dropout=0.5)
+        # State size: (feature_map * 8) x 4 x 4
         self.up3 = UNetUp(self.feature_map * 16, self.feature_map * 4, dropout=0.5)
+        # State size: (feature_map * 4) x 8 x 8
         self.up4 = UNetUp(self.feature_map * 8, self.feature_map * 2)
-        self.up5 = UNetUp((self.feature_map * 4) + self.channels, 64)
+        # State size: (feature_map * 2) x 16 x 16
+        self.up5 = UNetUp((self.feature_map * 4) + self.channels, self.feature_map)
+        # State size: feature_map x 32 x 32
 
-        final = [nn.Upsample(scale_factor=2), 
-                 nn.Conv2d(self.feature_map * 2, self.channels, 3, 1, 1), 
-                 nn.Tanh()]
+        final = [nn.Upsample(scale_factor=2),
+                 # State size: feature_map x 64 x 64
+                 nn.Conv2d(self.feature_map * 2, self.channels, 3, 1, 1),
+                 # State size: channels x 64 x 64
+                 nn.Tanh()] 
         self.final = nn.Sequential(*final)
 
     def forward(self, input, x_lr):

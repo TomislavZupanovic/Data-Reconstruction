@@ -35,7 +35,6 @@ class Data:
         real_img = data[0]
         img_size = real_img.shape[2]
         masked_img, real_part = real_img.clone(), real_img.clone()
-        # masking_equations = [2 * 117.0 / 255.0 - 1.0, 2 * 104.0 / 255.0 - 1.0, 2 * 123.0 / 255.0 - 1.0]
         masking_equations = [-1.0, -1.0, -1.0]
         if option == 'half':
             mask = np.zeros(real_img.shape[2:])

@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch
+from torch.nn.modules.activation import Sigmoid
 import torch.optim as optim
 
 
@@ -47,7 +48,7 @@ class Generator(nn.Module):
                 nn.Conv2d(self.feature_map * 8, 4000, 1),
 
                 # Decoder
-                # State size: (feature_map * 8) x 2 x 2
+                # State size: 4000 x 2 x 2
                 nn.ConvTranspose2d(4000, self.feature_map * 8, 3, 1, 0, bias=False),
                 nn.BatchNorm2d(self.feature_map * 8, 0.8),
                 nn.ReLU(),
@@ -145,7 +146,7 @@ class Discriminator(nn.Module):
             nn.InstanceNorm2d(self.feature_map * 8),
             nn.LeakyReLU(0.2, inplace=True),
             # State size: (feature_map * 8) x 4 x 4
-            nn.Conv2d(self.feature_map * 8, 1, 4, 1, 0, bias=bias)
+            nn.Conv2d(self.feature_map * 8, 1, 4, 1, 0, bias=bias),
             # Output size: 1 x 1 x 1
         )
 
