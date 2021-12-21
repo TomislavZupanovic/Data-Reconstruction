@@ -1,4 +1,4 @@
-from source.inner_models import Generator, Discriminator
+from source.aegan_models import Generator, Discriminator
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -28,12 +28,12 @@ class AEGAN(object):
         learning_rate = 0.0002
         beta1 = 0.5
         # Discriminator
-        discriminator = Discriminator(latent_vector, image_size, channels, gan_option='AE-GAN')
+        discriminator = Discriminator(latent_vector, image_size, channels)
         discriminator.build()
         discriminator.apply(Discriminator.init_weights)
         discriminator.define_optim(learning_rate, beta1)
         # Context Encoder (None for latent vector size, we don't need it)
-        generator = Generator(None, image_size, channels, gan_option='AE-GAN')
+        generator = Generator(None, image_size, channels)
         generator.build()
         generator.apply(Generator.init_weights)
         generator.define_optim(learning_rate, beta1)
@@ -107,7 +107,6 @@ class AEGAN(object):
         saved_samples = {}
         print('\nStarting Training...')
         training_start_time = time.time()
-        lambda_pixel, lambda_adv = 0.999, 0.001  # TODO: testing dynamic loss lambdas
         for epoch in range(epochs):
             for batch_num, data in enumerate(train_dataloader, 0):
                 """ Defining mask area on images """
@@ -135,15 +134,8 @@ class AEGAN(object):
                 # Adversarial and pixelwise loss
                 g_adv = self.adversarial_loss(self.discriminator(generated_parts), valid)
                 g_pixel = self.pixelwise_loss(generated_parts, real_part)
-                # Total loss
-                # TODO: testing dynamic loss lambdas
-                if epoch == 25:
-                    lambda_pixel, lambda_adv = 0.9, 0.1
-                elif epoch == 50:
-                    lambda_pixel, lambda_adv = 0.8, 0.2
-                elif epoch == 75:
-                    lambda_pixel, lambda_adv = 0.7, 0.3              
-                context_enc_loss = lambda_pixel * g_pixel + lambda_adv * g_adv
+                # Total loss           
+                context_enc_loss = 0.999 * g_pixel + 0.001 * g_adv
                 context_enc_loss.backward()
                 self.generator.optimizer.step()
 
@@ -159,9 +151,7 @@ class AEGAN(object):
                 if batch_num % 50 == 0:
                     print(f'[{epoch+1}/{epochs}][{batch_num}/{len(train_dataloader)}] '
                           f'D_Loss: {round(discriminator_loss.item(), 4)}, '
-                          f'G_Loss: {round(context_enc_loss.item(), 4)}, '
-                          f'Pixel: {lambda_pixel}, '
-                          f'Adv: {lambda_adv}')
+                          f'G_Loss: {round(context_enc_loss.item(), 4)}, ')
                 if batch_num % 100 == 0:
                     self.G_losses.append(context_enc_loss.item())
                     self.D_losses.append(discriminator_loss.item())
