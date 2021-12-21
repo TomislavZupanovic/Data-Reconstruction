@@ -51,7 +51,7 @@ if __name__ == '__main__':
             model.generate_images(dataloader=data.test_dataloader)
             save = input('\nSave Generator? [y,n] ')
             if save == 'y':
-                torch.save(model.generator.state_dict(), f'saved_models/{training_time}-Generator.pth')
+                torch.save(model.generator.state_dict(), f'experiments/DCGAN/{training_time}-Generator.pth')
             else:
                 pass
         # Other architectures are using masked images
